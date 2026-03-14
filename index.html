@@ -134,7 +134,7 @@ textarea{min-height:68px;resize:vertical}
 .filters input{flex:1;min-width:120px}
 .fcnt{font-size:.7rem;color:var(--DM)}
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:11px}
-.card{background:var(--D1);border:1px solid var(--BD);border-radius:12px;overflow:hidden;transition:all .22s cubic-bezier(.4,0,.2,1);position:relative;cursor:pointer}
+.card{background:var(--D1);border:1px solid var(--BD);border-radius:12px;overflow:hidden;transition:all .22s cubic-bezier(.4,0,.2,1);position:relative;cursor:pointer;}
 .card:hover{border-color:var(--Y);transform:translateY(-2px);box-shadow:0 6px 24px rgba(0,0,0,.4),0 0 0 1px var(--Y)}
 .task-item{background:var(--D1);border:1px solid var(--BD);border-radius:8px;padding:10px 12px;display:flex;align-items:flex-start;gap:9px;transition:border-color .18s}
 .task-item:hover{border-color:var(--Y)}
@@ -859,10 +859,8 @@ body.sem-theme .gp-toggle{background:#d4dff0;}
 
 /* ── COMPACT CARDS ─────────────────────────────────────────── */
 .compact-card {
-  background: rgba(255,255,255,0.04) !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
-  border: 1px solid rgba(255,255,255,0.08) !important;
+  background: rgba(255,255,255,0.05) !important;
+  border: 1px solid rgba(255,255,255,0.1) !important;
   border-radius: 14px;
   overflow: hidden;
   cursor: pointer;
@@ -1034,6 +1032,135 @@ body.sem-theme .hc-card {
 /* SEM light theme base */
 body.sem-theme { --BK:#f0ede6; --D1:rgba(255,255,255,.55); --D2:rgba(255,255,255,.4); --D3:rgba(0,0,0,.07); --BD:rgba(0,0,0,.1); --TX:#1a1a1a; --MT:#666; }
 
+
+/* ── Compact detail stage checkbox ─────────────────────────── */
+.cd-stage-chk {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--D3);
+  border: 1.5px solid var(--BD);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .62rem;
+  color: transparent;
+  flex-shrink: 0;
+  transition: all .18s;
+}
+.cd-stage-chk.done {
+  background: rgba(34,197,94,.18);
+  border-color: #22c55e;
+  color: #22c55e;
+}
+.cd-stage-row {
+  user-select: none;
+}
+.cd-stage-row:hover .cd-stage-chk {
+  border-color: var(--Y);
+}
+.cd-stage-row.done:hover .cd-stage-chk {
+  border-color: #22c55e;
+}
+
+
+/* SEM theme: chat solid background */
+body.sem-theme #chat-box {
+  background: #ffffff !important;
+  border: 1px solid rgba(0,0,0,0.15) !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.15) !important;
+}
+body.sem-theme #chat-box * { color: #1a1a1a; }
+body.sem-theme .chat-msg-self .chat-bubble-msg { background: #F5C400 !important; color: #111 !important; }
+body.sem-theme .chat-msg-other .chat-bubble-msg { background: #f0f0f0 !important; color: #111 !important; }
+body.sem-theme #chat-msg-input { background: #f5f5f5 !important; color: #111 !important; border-color: rgba(0,0,0,.15) !important; }
+body.sem-theme .chat-header { background: #f8f8f8 !important; border-bottom: 1px solid rgba(0,0,0,.1) !important; }
+
+
+/* ── FILTER TOGGLE ─────────────────────────────────────────── */
+.filter-search-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 0;
+}
+.filter-search-row #srch {
+  flex: 1;
+  margin: 0;
+}
+.filter-toggle-btn {
+  background: var(--D2);
+  border: 1px solid var(--BD);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: .78rem;
+  font-weight: 700;
+  color: var(--TX);
+  cursor: pointer;
+  white-space: nowrap;
+  position: relative;
+  transition: all .2s;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.filter-toggle-btn.active,
+.filter-toggle-btn:hover {
+  border-color: var(--Y);
+  color: var(--Y);
+}
+.filter-active-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--Y);
+  border-radius: 50%;
+  position: absolute;
+  top: 5px;
+  right: 5px;
+}
+.filter-panel {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+  margin-top: 8px;
+  animation: fadeInDown .18s ease;
+}
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.filter-panel select { margin: 0; width: 100%; font-size: .74rem; }
+
+/* ── SOLD ROW IN DETAIL MODAL ───────────────────────────────── */
+.cd-sold-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  background: var(--D2);
+  border-radius: 10px;
+  cursor: pointer;
+  margin-bottom: 2px;
+  transition: background .15s;
+  border: 1.5px solid transparent;
+}
+.cd-sold-row:hover { background: var(--D3); border-color: var(--Y); }
+.cd-sold-chk {
+  width: 20px; height: 20px;
+  border-radius: 5px;
+  border: 2px solid var(--BD);
+  display: flex; align-items: center; justify-content: center;
+  font-size: .65rem; color: #22c55e;
+  flex-shrink: 0; transition: all .15s;
+}
+.cd-sold-chk.checked { background: rgba(34,197,94,.2); border-color: #22c55e; }
+.cd-sold-lbl { font-size: .82rem; color: var(--TX); font-weight: 600; }
+
+/* ── STAGE ROWS — clickable ─────────────────────────────────── */
+.cd-stage-row { cursor: pointer; user-select: none; }
+.cd-stage-row:hover { background: var(--D3) !important; }
+.cd-stage-row:active { transform: scale(.98); }
+
 </style>
 </head>
 <body>
@@ -1153,7 +1280,7 @@ body.sem-theme { --BK:#f0ede6; --D1:rgba(255,255,255,.55); --D2:rgba(255,255,255
   </div>
   <div class="sb-sec">Навигация</div>
   <button class="sb-item active" id="sb-dash"><i class="fas fa-chart-bar"></i> Дашборд</button>
-  <button class="sb-item" id="sb-clients"><i class="fas fa-users"></i> Клиенты <span class="sb-badge" id="sb-cnt">0</span></button>
+  <button class="sb-item" id="sb-clients"><i class="fas fa-users"></i> Заказчики <span class="sb-badge" id="sb-cnt">0</span></button>
   <button class="sb-item" id="sb-wata"><i class="fas fa-exclamation-triangle" style="color:#ef4444"></i> Вата клиенты <span class="sb-badge red" id="sb-wcnt">0</span></button>
   <button class="sb-item" id="sb-tasks"><i class="fas fa-check-square"></i> Задачи <span class="sb-badge red" id="sb-tcnt">0</span></button>
   <button class="sb-item" id="sb-sold"><i class="fas fa-check-double" style="color:#22c55e"></i> Проданные <span class="sb-badge" id="sb-scnt" style="background:#22c55e">0</span></button>
@@ -1223,7 +1350,7 @@ body.sem-theme { --BK:#f0ede6; --D1:rgba(255,255,255,.55); --D2:rgba(255,255,255
     </div>
     <div class="hc-card" onclick="openDrawer('clients')">
       <div class="hc-icon"><i class="fas fa-users"></i></div>
-      <div class="hc-label">Клиенты</div>
+      <div class="hc-label">Заказчики</div>
       <div class="hc-sub" id="hc-sub-clients">0 активных</div>
     </div>
     <div class="hc-card" onclick="openDrawer('tasks')">
@@ -1260,7 +1387,7 @@ body.sem-theme { --BK:#f0ede6; --D1:rgba(255,255,255,.55); --D2:rgba(255,255,255
   <span class="cattitle">TAGAEV</span>
   <div id="topbar-kpi" style="display:flex;gap:2px;margin-left:12px;">
     <button class="dock-btn" onclick="openDrawer('dash')" style="min-width:0;padding:5px 10px;border-radius:8px;flex-direction:row;gap:6px;font-size:.72rem;"><i class="fas fa-chart-line"></i><span style="display:block;font-size:.65rem;">Дашборд</span></button>
-    <button class="dock-btn" onclick="openDrawer('clients')" style="min-width:0;padding:5px 10px;border-radius:8px;flex-direction:row;gap:6px;font-size:.72rem;"><i class="fas fa-users"></i><span style="display:block;font-size:.65rem;">Клиенты</span></button>
+    <button class="dock-btn" onclick="openDrawer('clients')" style="min-width:0;padding:5px 10px;border-radius:8px;flex-direction:row;gap:6px;font-size:.72rem;"><i class="fas fa-users"></i><span style="display:block;font-size:.65rem;">Заказчики</span></button>
     <button class="dock-btn" onclick="openDrawer('wata')" style="min-width:0;padding:5px 10px;border-radius:8px;flex-direction:row;gap:6px;font-size:.72rem;"><i class="fas fa-exclamation-triangle"></i><span style="display:block;font-size:.65rem;">Вата</span></button>
     <button class="dock-btn" onclick="openDrawer('tasks')" style="min-width:0;padding:5px 10px;border-radius:8px;flex-direction:row;gap:6px;font-size:.72rem;"><i class="fas fa-tasks"></i><span style="display:block;font-size:.65rem;">Задачи</span></button>
     <button class="dock-btn" onclick="openDrawer('calc')" style="min-width:0;padding:5px 10px;border-radius:8px;flex-direction:row;gap:6px;font-size:.72rem;"><i class="fas fa-calculator"></i><span style="display:block;font-size:.65rem;">Калькулятор</span></button>
@@ -1334,7 +1461,7 @@ body.sem-theme { --BK:#f0ede6; --D1:rgba(255,255,255,.55); --D2:rgba(255,255,255
 <!-- CLIENTS -->
 <div id="view-clients">
 <div class="wrap">
-  <div class="ptitle"><i class="fas fa-users"></i> Клиенты</div>
+  <div class="ptitle"><i class="fas fa-users"></i> Заказчики</div>
   <div class="panel" id="cpanel">
     <div class="panel-h" id="cpanel-toggle">
       <div class="panel-title"><i class="fas fa-plus-circle"></i> <span id="frmTxt">Добавить клиента</span></div>
@@ -1400,19 +1527,27 @@ body.sem-theme { --BK:#f0ede6; --D1:rgba(255,255,255,.55); --D2:rgba(255,255,255
     </div>
   </div>
   <div class="filters">
-    <input type="text" id="srch" placeholder="Поиск...">
-    <select id="fltP">
-      <option value="">Все</option>
-      <option value="hot">Горячие &ge;70%</option>
-      <option value="warm">Тёплые 40-69%</option>
-      <option value="cold">Холодные &lt;40%</option>
-    </select>
-    <select id="fltB"><option value="">Все бренды</option><option value="CAT">CAT</option><option value="SEM">SEM</option></select>
-    <select id="srtB">
-      <option value="date">По дате</option>
-      <option value="prob">По вероятности</option>
-      <option value="name">По названию</option>
-    </select>
+    <div class="filter-search-row">
+      <input type="text" id="srch" placeholder="Поиск заказчика...">
+      <button class="filter-toggle-btn" id="filterToggleBtn" onclick="toggleFilterPanel()">
+        <i class="fas fa-sliders-h"></i> Фильтр
+        <span class="filter-active-dot" id="filterActiveDot" style="display:none"></span>
+      </button>
+    </div>
+    <div class="filter-panel" id="filterPanel" style="display:none;">
+      <select id="fltP">
+        <option value="">Все вероятности</option>
+        <option value="hot">Горячие &ge;70%</option>
+        <option value="warm">Тёплые 40-69%</option>
+        <option value="cold">Холодные &lt;40%</option>
+      </select>
+      <select id="fltB"><option value="">Все бренды</option><option value="CAT">CAT</option><option value="SEM">SEM</option></select>
+      <select id="srtB">
+        <option value="date">По дате</option>
+        <option value="prob">По вероятности</option>
+        <option value="name">По названию</option>
+      </select>
+    </div>
     <span class="fcnt" id="fcnt"></span>
   </div>
   <div class="cards" id="cards"></div>
@@ -1956,7 +2091,7 @@ var currentDrawer = null;
 
 var DRAWER_CONFIG = {
   'dash':    { title:'<i class="fas fa-chart-line"></i> Дашборд',     actions: '' },
-  'clients': { title:'<i class="fas fa-users"></i> Клиенты',          actions: 'clients' },
+  'clients': { title:'<i class="fas fa-users"></i> Заказчики',          actions: 'clients' },
   'wata':    { title:'<i class="fas fa-exclamation-triangle" style="color:#ef4444"></i> Вата', actions: '' },
   'tasks':   { title:'<i class="fas fa-tasks"></i> Задачи',           actions: '' },
   'calc':    { title:'<i class="fas fa-calculator"></i> Калькулятор', actions: '' },
@@ -3278,8 +3413,9 @@ function openCompactDetail(cid) {
   var wp = wpLink(c.phone);
 
   var stgRows = STAGES.map(function(txt, i) {
-    return '<div class="cd-stage-row' + (c.stages[i] ? ' done' : '') + '">' +
-      '<div class="cd-stage-dot' + (c.stages[i] ? ' done' : '') + '">' + (c.stages[i] ? '<i class="fas fa-check"></i>' : (i+1)) + '</div>' +
+    var checked = !!c.stages[i];
+    return '<div class="cd-stage-row' + (checked ? ' done' : '') + '" data-stage-i="' + i + '" data-cid="' + c.id + '" style="cursor:pointer;">' +
+      '<div class="cd-stage-chk' + (checked ? ' done' : '') + '">' + (checked ? '<i class="fas fa-check"></i>' : '') + '</div>' +
       '<span>' + esc(txt) + '</span>' +
     '</div>';
   }).join('');
@@ -3307,14 +3443,14 @@ function openCompactDetail(cid) {
         // Progress bar
         '<div style="margin-bottom:16px;">' +
           '<div style="display:flex;justify-content:space-between;font-size:.67rem;color:var(--MT);margin-bottom:4px;"><span>Прогресс сделки</span><span>' + done + ' из ' + STAGES.length + ' этапов</span></div>' +
-          '<div style="height:6px;background:var(--D3);border-radius:3px;overflow:hidden;"><div style="height:100%;width:' + pct + '%;background:' + fillColor + ';border-radius:3px;transition:width .4s;"></div></div>' +
+          '<div style="height:6px;background:var(--D3);border-radius:3px;overflow:hidden;"><div class="cd-fill-bar" style="height:100%;width:' + pct + '%;background:' + fillColor + ';border-radius:3px;transition:width .4s;"></div></div>' +
         '</div>' +
 
         // Info rows
         '<div style="display:grid;gap:7px;margin-bottom:16px;">' +
           (c.phone ? '<div style="display:flex;align-items:center;gap:9px;background:var(--D2);border-radius:9px;padding:9px 12px;font-size:.82rem;color:var(--TX);">' +
             '<i class="fab fa-whatsapp" style="color:#25D366;width:16px;text-align:center;"></i>' +
-            (wp ? '<a href="' + wp + '" target="_blank" style="color:#25D366;text-decoration:none;">' + esc(c.phone) + '</a>' : esc(c.phone)) + '</div>' : '') +
+            (wp ? '<a href="' + wp + '" target="_blank" style="color:#60a5fa;text-decoration:none;font-weight:600;">' + esc(c.phone) + '</a>' : '<span style="color:#60a5fa;font-weight:600;">' + esc(c.phone) + '</span>') + '</div>' : '') +
           (c.city ? '<div style="display:flex;align-items:center;gap:9px;background:var(--D2);border-radius:9px;padding:9px 12px;font-size:.82rem;color:var(--TX);"><i class="fas fa-map-marker-alt" style="color:var(--Y);width:16px;text-align:center;"></i>' + esc(c.city) + '</div>' : '') +
           (c.model ? '<div style="display:flex;align-items:center;gap:9px;background:var(--D2);border-radius:9px;padding:9px 12px;font-size:.82rem;color:var(--TX);"><i class="fas fa-cogs" style="color:var(--Y);width:16px;text-align:center;"></i>' + esc(c.brand||'') + ' ' + esc(c.model) + ' &times;' + (c.units||1) + ' ед.</div>' : '') +
           (c.price ? '<div style="display:flex;align-items:center;gap:9px;background:var(--D2);border-radius:9px;padding:9px 12px;font-size:.82rem;color:var(--TX);"><i class="fas fa-dollar-sign" style="color:#22c55e;width:16px;text-align:center;"></i>' + fmtN(c.price) + ' USD</div>' : '') +
@@ -3327,8 +3463,14 @@ function openCompactDetail(cid) {
         '<div style="font-size:.68rem;font-weight:700;color:var(--MT);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">Этапы сделки</div>' +
         '<div style="display:grid;gap:5px;margin-bottom:20px;">' + stgRows + '</div>' +
 
+        // Sold checkbox
+        '<div class="cd-sold-row" data-cd-cid="' + c.id + '">' +
+          '<div class="cd-sold-chk' + (c.sold ? ' checked' : '') + '">' + (c.sold ? '<i class="fas fa-check"></i>' : '') + '</div>' +
+          '<span class="cd-sold-lbl">' + (c.sold ? '✅ ПРОДАНО' : '☐ Отметить как продано') + '</span>' +
+        '</div>' +
+
         // Action buttons
-        '<div style="display:flex;gap:8px;">' +
+        '<div style="display:flex;gap:8px;margin-top:10px;">' +
           '<button class="cd-btn-edit" style="flex:1;background:var(--D3);border:1px solid var(--BD);border-radius:10px;padding:11px;font-size:.82rem;font-weight:700;color:var(--TX);cursor:pointer;"><i class="fas fa-edit" style="margin-right:5px;"></i>Изменить</button>' +
           '<button class="cd-btn-open" style="flex:1;background:var(--Y);border:none;border-radius:10px;padding:11px;font-size:.82rem;font-weight:700;color:#111;cursor:pointer;"><i class="fas fa-eye" style="margin-right:5px;"></i>Открыть</button>' +
         '</div>' +
@@ -3341,11 +3483,59 @@ function openCompactDetail(cid) {
   document.body.appendChild(wrapper);
 
   // Close on overlay click
+  // Bind sold row
+  var soldRow = wrapper.querySelector('.cd-sold-row');
+  if (soldRow) soldRow.addEventListener('click', function() {
+    var c = findC(cid); if (!c) return;
+    c.sold = !c.sold;
+    saveAll(); renderCards(); renderWataCards(); renderSoldCards(); updBadges(); renderChar();
+    var chk = soldRow.querySelector('.cd-sold-chk');
+    var lbl = soldRow.querySelector('.cd-sold-lbl');
+    if (c.sold) {
+      chk.classList.add('checked'); chk.innerHTML = '<i class="fas fa-check"></i>';
+      lbl.textContent = '✅ ПРОДАНО';
+    } else {
+      chk.classList.remove('checked'); chk.innerHTML = '';
+      lbl.textContent = '☐ Отметить как продано';
+    }
+    toast(c.sold ? '✅ Клиент помечен как ПРОДАНО!' : 'Отметка снята');
+  });
+
   // Bind edit/open buttons
   var editBtn = wrapper.querySelector('.cd-btn-edit');
   var openBtn = wrapper.querySelector('.cd-btn-open');
   if (editBtn) editBtn.addEventListener('click', function() { closeCompactDetail(); editClient(cid); });
   if (openBtn) openBtn.addEventListener('click', function() { closeCompactDetail(); openDetail(cid); });
+
+  // Bind stage toggles
+  wrapper.querySelectorAll('.cd-stage-row').forEach(function(row) {
+    row.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var ci   = parseInt(row.getAttribute('data-stage-i'));
+      var ccid = row.getAttribute('data-cid');
+      var cl   = findC(ccid); if (!cl) return;
+      cl.stages[ci] = !cl.stages[ci];
+      var chk = row.querySelector('.cd-stage-chk');
+      if (cl.stages[ci]) {
+        chk.classList.add('done');
+        chk.innerHTML = '<i class="fas fa-check"></i>';
+        row.classList.add('done');
+      } else {
+        chk.classList.remove('done');
+        chk.innerHTML = '';
+        row.classList.remove('done');
+      }
+      // Update progress bar inside modal
+      var done2 = cl.stages.filter(Boolean).length;
+      var pct2  = Math.round(done2 / STAGES.length * 100);
+      var bar = wrapper.querySelector('.cd-fill-bar');
+      var cnt = wrapper.querySelector('.cd-stage-count');
+      if (bar)  bar.style.width = pct2 + '%';
+      if (cnt)  cnt.textContent = done2 + ' из ' + STAGES.length + ' этапов';
+      saveAll();
+      renderCards(); renderWataCards();
+    });
+  });
 
   document.getElementById('cd-modal-overlay').addEventListener('click', function(e) {
     if (e.target === this) closeCompactDetail();
@@ -3355,6 +3545,51 @@ function openCompactDetail(cid) {
 function closeCompactDetail() {
   var w = document.getElementById('compact-detail-wrapper');
   if (w) w.remove();
+}
+
+
+function toggleFilterPanel() {
+  var panel = document.getElementById('filterPanel');
+  var btn   = document.getElementById('filterToggleBtn');
+  var dot   = document.getElementById('filterActiveDot');
+  var open  = panel.style.display !== 'none';
+  panel.style.display = open ? 'none' : 'grid';
+  btn.classList.toggle('active', !open);
+  // Check if any filter active
+  var fP = document.getElementById('fltP').value;
+  var fB = document.getElementById('fltB').value;
+  var sB = document.getElementById('srtB').value;
+  var anyActive = fP || fB || (sB && sB !== 'date');
+  if (dot) dot.style.display = anyActive ? 'inline-block' : 'none';
+}
+
+
+function toggleStageInDetail(el, idx, cid) {
+  var c = findC(cid); if (!c) return;
+  c.stages[idx] = !c.stages[idx];
+  saveAll();
+  // Update UI
+  var dot = el.querySelector('.cd-stage-dot');
+  if (c.stages[idx]) {
+    el.classList.add('done');
+    dot.classList.add('done');
+    dot.innerHTML = '<i class="fas fa-check"></i>';
+  } else {
+    el.classList.remove('done');
+    dot.classList.remove('done');
+    dot.innerHTML = '<span style="font-size:.6rem;font-weight:700;">' + (idx+1) + '</span>';
+  }
+  // Update progress in modal
+  var done = c.stages.filter(Boolean).length;
+  var pct = Math.round(done / STAGES.length * 100);
+  var fillColor = parseInt(c.prob) >= 70 ? '#22c55e' : parseInt(c.prob) >= 40 ? '#f97316' : '#ef4444';
+  var fill = document.querySelector('#cd-modal .compact-fill');
+  var counter = document.querySelector('#cd-modal .cd-prog-counter');
+  if (fill) { fill.style.width = pct + '%'; fill.style.background = fillColor; }
+  if (counter) counter.textContent = done + ' из ' + STAGES.length;
+  // Also re-render cards in background
+  renderCards && renderCards();
+  renderWataCards && renderWataCards();
 }
 
 document.addEventListener('DOMContentLoaded', function() {
