@@ -1,22 +1,24 @@
 {
-  "name": "TAGAEV CRM",
-  "short_name": "TAGAEV",
-  "description": "CRM система управления продажами",
+  "name": "my.crm",
+  "short_name": "my.crm",
+  "description": "CRM для отдела продаж техники",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#111111",
-  "theme_color": "#111111",
-  "orientation": "portrait-primary",
+  "orientation": "any",
+  "background_color": "#141414",
+  "theme_color": "#FFCD11",
   "icons": [
     {
-      "src": "/icon-192.png",
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='32' fill='%23FFCD11'/><text x='30' y='145' font-size='130' font-weight='900' font-family='system-ui' fill='%23141414'>m</text></svg>",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/svg+xml"
     },
     {
-      "src": "/icon-512.png",
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='80' fill='%23FFCD11'/><text x='60' y='390' font-size='360' font-weight='900' font-family='system-ui' fill='%23141414'>m</text></svg>",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/svg+xml"
     }
-  ]
+  ],
+  "categories": ["business", "productivity"],
+  "lang": "ru"
 }
