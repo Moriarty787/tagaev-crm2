@@ -2272,7 +2272,7 @@ function reattachCalcHandlers() {
       calcUpdate();
     });
   });
-  // GP Calculator event listeners — direct getElementById (no drawer wrapper)
+  // GP preset buttons
   document.getElementById('gp-price').addEventListener('input', gpCalc);
   document.getElementById('gp-current-pct').addEventListener('input', gpCalc);
   document.getElementById('gp-zip').addEventListener('input', gpCalc);
@@ -2291,37 +2291,7 @@ function reattachCalcHandlers() {
       gpCalc();
     });
   });
-}
 
-// ==================== LIVE CRM BACKGROUND CHART ====================
-
-function initBgCanvas() { /* паттерн SVG — canvas не нужен */ }
-
-function drawBgChart() {
-  /* фон — SVG паттерн, chart не используется */
-}
-
-function refreshBgChart() { /* no-op */ }
-
-function updBgChart() { /* no-op */ }
-
-
-
-
-
-function updBadges() {
-  var normalClients = clients.filter(function(c){ return parseInt(c.prob) >= 10 && !c.sold; });
-  var wataClients   = clients.filter(function(c){ return parseInt(c.prob) === 0; });
-  var sbCnt = document.getElementById('sb-cnt'); if (sbCnt) sbCnt.textContent = normalClients.length;
-  var wcnt = document.getElementById('sb-wcnt'); if (wcnt) wcnt.textContent = wataClients.length;
-  var act = tasks.filter(function(t) { return !t.done; }).length;
-  var sbTcnt = document.getElementById('sb-tcnt'); if (sbTcnt) sbTcnt.textContent = act;
-  var kv5 = document.getElementById('kv5'); if (kv5) kv5.textContent = act;
-  var ov = tasks.filter(function(t) { return !t.done && t.date && new Date(t.date) < new Date(); }).length;
-  var s = document.getElementById('kv5s'); if (s) s.textContent = ov > 0 ? ov + ' просроченных' : '';
-  var soldCount = clients.filter(function(c){ return c.sold; }).length;
-  var scnt = document.getElementById('sb-scnt'); if (scnt) scnt.textContent = soldCount;
-  var hot = clients.filter(function(c){ return parseInt(c.prob) >= 70 && !c.sold; }).length;
   // Topbar KPI
   var tk1 = document.getElementById('tb-k1'); if (tk1) tk1.textContent = normalClients.length;
   var tk2 = document.getElementById('tb-k2'); if (tk2) tk2.textContent = hot;
@@ -3763,7 +3733,6 @@ function gpCalc() {
   gpRenderTable(salePrice, currentGP, newGP);
 }
 
-
 function fmtMoney(n) {
   return Number(n).toLocaleString('ru-RU', {minimumFractionDigits:2, maximumFractionDigits:2});
 }
@@ -3790,7 +3759,6 @@ function gpRenderTable(salePrice, currentGP, newGP) {
     tbody.appendChild(tr);
   });
 }
-
 
 function renderCalc() {
   gpCalc();
@@ -4523,4 +4491,184 @@ window.addEventListener('load', async function() {
 </div>
 
 </body>
-</html>
+</html<div class="view" id="view-calc">
+<div class="wrap" style="max-width:820px">
+  <div class="ptitle"><i class="fas fa-calculator"></i> Калькулятор валовой прибыли (GP)</div>
+
+  <!-- MAIN CALC CARD -->
+  <div class="gp-card">
+    <div class="gp-card-header">
+      <div class="gp-card-title"><i class="fas fa-percentage"></i> Расчёт маржи и цены</div>
+      <div class="gp-badge" id="gp-badge-pct">GP: 17%</div>
+    </div>
+    <div class="gp-body">
+      <div class="gp-grid">
+        <!-- Исходная цена -->
+        <div class="gp-field">
+          <label class="gp-label"><i class="fas fa-dollar-sign"></i> Цена продажи (с текущей маржой)</label>
+          <div class="gp-input-wrap">
+            <input class="gp-input" type="number" id="gp-price" placeholder="0.00" step="0.01">
+            <span class="gp-unit">USD</span>
+          </div>
+        </div>
+        <!-- Текущая маржа -->
+        <div class="gp-field">
+          <label class="gp-label"><i class="fas fa-chart-line"></i> Текущая маржа (%)</label>
+          <div class="gp-input-wrap">
+            <input class="gp-input" type="number" id="gp-current-pct" value="17" step="0.1" min="0" max="99">
+            <span class="gp-unit">%</span>
+          </div>
+        </div>
+        <!-- ЗИП -->
+        <div class="gp-field">
+          <label class="gp-label"><i class="fas fa-toolbox"></i> ЗИП (запасные части)</label>
+          <div class="gp-input-wrap">
+            <input class="gp-input" type="number" id="gp-zip" placeholder="0.00" step="0.01" min="0">
+            <span class="gp-unit">USD</span>
+          </div>
+          <div style="font-size:.68rem;color:var(--MT);margin-top:5px;"><i class="fas fa-info-circle"></i> Если ЗИП = 0, автоматически вычитается <b style="color:var(--RD)">$2 000</b> из суммы</div>
+        </div>
+        <!-- DDP toggle -->
+        <div class="gp-field">
+          <label class="gp-label"><i class="fas fa-ship"></i> Условия поставки DDP</label>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:6px;">
+            <label class="gp-toggle-wrap">
+              <input type="checkbox" id="gp-ddp-toggle">
+              <span class="gp-toggle"></span>
+            </label>
+            <span style="font-size:.78rem;color:var(--MT)" id="gp-ddp-lbl">Выключено</span>
+          </div>
+          <div style="font-size:.68rem;color:var(--MT);margin-top:5px;line-height:1.6;">
+            <i class="fas fa-info-circle"></i> НДС <b>12%</b> + Пошлина <b>5,4%</b> + НСП <b>1%</b>
+          </div>
+        </div>
+        <!-- Новая маржа -->
+        <div class="gp-field gp-field-full">
+          <label class="gp-label"><i class="fas fa-sliders-h"></i> Новая маржа — быстрый выбор</label>
+          <div class="gp-presets">
+            <button class="gp-preset" data-v="10">10%</button>
+            <button class="gp-preset" data-v="11">11%</button>
+            <button class="gp-preset" data-v="12">12%</button>
+            <button class="gp-preset" data-v="13">13%</button>
+            <button class="gp-preset" data-v="14">14%</button>
+            <button class="gp-preset" data-v="15">15%</button>
+            <button class="gp-preset" data-v="16">16%</button>
+            <button class="gp-preset active" data-v="17">17%</button>
+            <button class="gp-preset" data-v="18">18%</button>
+            <button class="gp-preset" data-v="20">20%</button>
+            <button class="gp-preset" data-v="22">22%</button>
+            <button class="gp-preset" data-v="25">25%</button>
+          </div>
+          <div class="gp-input-wrap" style="margin-top:10px;max-width:260px">
+            <input class="gp-input" type="number" id="gp-percent" value="17" step="0.1" min="0" max="99" placeholder="Ввести вручную">
+            <span class="gp-unit">%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- RESULTS -->
+      <div class="gp-results" id="gp-results" style="display:none">
+        <div class="gp-res-title"><i class="fas fa-chart-bar"></i> Результаты расчёта</div>
+        <div class="gp-res-grid">
+          <div class="gp-res-card gp-res-cost">
+            <div class="gp-res-label">Себестоимость</div>
+            <div class="gp-res-value" id="gp-res-cost">—</div>
+            <div class="gp-res-sub">Стоимость закупки</div>
+          </div>
+          <div class="gp-res-card gp-res-new">
+            <div class="gp-res-label">Цена при <span id="gp-res-pct-label">17</span>% GP</div>
+            <div class="gp-res-value" id="gp-res-price">—</div>
+            <div class="gp-res-sub">Новая цена продажи</div>
+          </div>
+          <div class="gp-res-card" id="gp-res-diff-card">
+            <div class="gp-res-label">Изменение цены</div>
+            <div class="gp-res-value" id="gp-res-diff">—</div>
+            <div class="gp-res-sub" id="gp-res-diff-sub">vs. исходная</div>
+          </div>
+          <div class="gp-res-card gp-res-profit">
+            <div class="gp-res-label">Прибыль при новой %</div>
+            <div class="gp-res-value" id="gp-res-profit">—</div>
+            <div class="gp-res-sub">Валовая прибыль $</div>
+          </div>
+        </div>
+        <!-- ЗИП блок -->
+        <div id="gp-zip-block" style="display:none;margin-top:14px">
+          <div class="gp-res-title" style="margin-bottom:10px"><i class="fas fa-toolbox" style="color:#f97316"></i> С учётом ЗИП</div>
+          <div class="gp-res-grid" style="grid-template-columns:repeat(2,1fr)">
+            <div class="gp-res-card" style="border-top:3px solid #f97316">
+              <div class="gp-res-label">ЗИП корректировка</div>
+              <div class="gp-res-value" id="gp-zip-adj" style="color:#f97316">—</div>
+              <div class="gp-res-sub" id="gp-zip-sub">—</div>
+            </div>
+            <div class="gp-res-card" style="border-top:3px solid #f97316">
+              <div class="gp-res-label">Цена с ЗИП</div>
+              <div class="gp-res-value" id="gp-zip-price" style="color:#f97316">—</div>
+              <div class="gp-res-sub">Итоговая цена продажи</div>
+            </div>
+          </div>
+        </div>
+        <!-- DDP блок -->
+        <div id="gp-ddp-block" style="display:none;margin-top:14px">
+          <div class="gp-res-title" style="margin-bottom:10px"><i class="fas fa-ship" style="color:#60a5fa"></i> Расчёт DDP — налоги и пошлины</div>
+          <div class="gp-res-grid" style="grid-template-columns:repeat(3,1fr)">
+            <div class="gp-res-card" style="border-top:3px solid #60a5fa">
+              <div class="gp-res-label">НДС 12%</div>
+              <div class="gp-res-value" id="gp-ddp-nds" style="color:#60a5fa">—</div>
+              <div class="gp-res-sub">Налог на добав. стоимость</div>
+            </div>
+            <div class="gp-res-card" style="border-top:3px solid #a78bfa">
+              <div class="gp-res-label">Пошлина 5,4%</div>
+              <div class="gp-res-value" id="gp-ddp-duty" style="color:#a78bfa">—</div>
+              <div class="gp-res-sub">Таможенная пошлина</div>
+            </div>
+            <div class="gp-res-card" style="border-top:3px solid #fb923c">
+              <div class="gp-res-label">НСП 1%</div>
+              <div class="gp-res-value" id="gp-ddp-nsp" style="color:#fb923c">—</div>
+              <div class="gp-res-sub">Налог с продаж</div>
+            </div>
+          </div>
+          <div class="gp-res-card" style="margin-top:10px;border-top:3px solid var(--Y);background:rgba(255,205,17,.05)">
+            <div class="gp-res-label" style="color:var(--Y);font-size:.75rem">💰 ИТОГОВАЯ ЦЕНА DDP</div>
+            <div class="gp-res-value" id="gp-ddp-total" style="font-size:1.7rem;color:var(--Y)">—</div>
+            <div class="gp-res-sub" id="gp-ddp-total-sub">Включая НДС + Пошлина + НСП</div>
+          </div>
+        </div>
+        <!-- Bar визуализация -->
+        <div class="gp-bar-wrap" style="margin-top:14px">
+          <div class="gp-bar-row">
+            <span class="gp-bar-lbl">Себестоимость</span>
+            <div class="gp-bar-track"><div class="gp-bar-fill gp-bar-cost" id="gp-bar-cost" style="width:0%"></div></div>
+            <span class="gp-bar-val" id="gp-barv-cost">0%</span>
+          </div>
+          <div class="gp-bar-row">
+            <span class="gp-bar-lbl">Прибыль</span>
+            <div class="gp-bar-track"><div class="gp-bar-fill gp-bar-profit" id="gp-bar-profit" style="width:0%"></div></div>
+            <span class="gp-bar-val" id="gp-barv-profit">0%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMPARISON TABLE -->
+  <div class="gp-card" style="margin-top:14px">
+    <div class="gp-card-header">
+      <div class="gp-card-title"><i class="fas fa-table"></i> Сравнительная таблица маржи</div>
+    </div>
+    <div class="gp-body" style="padding:0">
+      <table class="gp-table" id="gp-table">
+        <thead>
+          <tr>
+            <th>GP %</th>
+            <th>Цена продажи</th>
+            <th>Прибыль $</th>
+            <th>Изменение</th>
+          </tr>
+        </thead>
+        <tbody id="gp-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+</div>>
