@@ -1191,7 +1191,7 @@ body.sem-theme::after {
 <div id="login-screen" style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:#111;position:fixed;inset:0;z-index:9999;">
   <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:18px;padding:40px 36px;width:340px;box-shadow:0 20px 60px rgba(0,0,0,.8);">
     <div style="text-align:center;margin-bottom:28px;">
-      <div style="font-size:1.4rem;font-weight:900;color:#FFCD11;letter-spacing:.05em;">TAGAEV CRM</div>
+      <div style="font-size:1.4rem;font-weight:900;color:#FFCD11;letter-spacing:.05em;">my.crm</div>
       <div style="font-size:.75rem;color:#555;margin-top:4px;">Введите логин и пароль для входа</div>
     </div>
     <div id="login-error" style="display:none;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:9px 14px;font-size:.78rem;color:#ef4444;margin-bottom:14px;text-align:center;"></div>
@@ -2272,28 +2272,25 @@ function reattachCalcHandlers() {
       calcUpdate();
     });
   });
-  ['gp-price','gp-current-pct','gp-zip','gp-percent'].forEach(function(id) {
-    var el = document.querySelector('#drawer-content #' + id);
-    if (el) el.addEventListener('input', function() {
-      if (id === 'gp-percent') {
-        var v = this.value;
-        document.querySelectorAll('#drawer-content .gp-preset').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-v') === v); });
-      }
-      gpCalc();
-    });
+  // GP Calculator event listeners — direct getElementById (no drawer wrapper)
+  document.getElementById('gp-price').addEventListener('input', gpCalc);
+  document.getElementById('gp-current-pct').addEventListener('input', gpCalc);
+  document.getElementById('gp-zip').addEventListener('input', gpCalc);
+  document.getElementById('gp-ddp-toggle').addEventListener('change', gpCalc);
+  document.getElementById('gp-percent').addEventListener('input', function() {
+    var v = this.value;
+    document.querySelectorAll('.gp-preset').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-v') === v); });
+    gpCalc();
   });
-  document.querySelectorAll('#drawer-content .gp-preset').forEach(function(b) {
+  document.querySelectorAll('.gp-preset').forEach(function(b) {
     b.addEventListener('click', function() {
       var v = b.getAttribute('data-v');
-      var pct = document.querySelector('#drawer-content #gp-percent');
-      if (pct) pct.value = v;
-      document.querySelectorAll('#drawer-content .gp-preset').forEach(function(x){ x.classList.remove('active'); });
+      document.getElementById('gp-percent').value = v;
+      document.querySelectorAll('.gp-preset').forEach(function(x){ x.classList.remove('active'); });
       b.classList.add('active');
       gpCalc();
     });
   });
-  var ddp = document.querySelector('#drawer-content #gp-ddp-toggle');
-  if (ddp) ddp.addEventListener('change', gpCalc);
 }
 
 // ==================== LIVE CRM BACKGROUND CHART ====================
@@ -3672,69 +3669,100 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // ==================== GP CALCULATOR ====================
 function gpCalc() {
-  var d = document.getElementById('drawer-content') || document;
-  function gv(id){ var el = d.querySelector('#'+id) || document.getElementById(id); return el ? el.value : ''; }
-  function gc(id){ var el = d.querySelector('#'+id) || document.getElementById(id); return el ? el.checked : false; }
-  function gs(id){ return d.querySelector('#'+id) || document.getElementById(id); }
-  var salePrice  = parseFloat(gv('gp-price')) || 0;
-  var currentGP  = parseFloat(gv('gp-current-pct')) || 17;
-  var newGP      = parseFloat(gv('gp-percent')) || 17;
-  var zipVal     = gv('gp-zip');
+  var salePrice  = parseFloat(document.getElementById('gp-price').value) || 0;
+  var currentGP  = parseFloat(document.getElementById('gp-current-pct').value) || 17;
+  var newGP      = parseFloat(document.getElementById('gp-percent').value) || 17;
+  var zipVal     = document.getElementById('gp-zip').value;
   var zipNum     = zipVal === '' ? null : parseFloat(zipVal);
-  var ddpOn      = gc('gp-ddp-toggle');
-  var res        = gs('gp-results');
-  var badge      = gs('gp-badge-pct');
+  var ddpOn      = document.getElementById('gp-ddp-toggle').checked;
+  var res        = document.getElementById('gp-results');
+  var badge      = document.getElementById('gp-badge-pct');
 
   // DDP label
-  var ddpLbl = gs('gp-ddp-lbl');
+  var ddpLbl = document.getElementById('gp-ddp-lbl');
   if (ddpLbl) ddpLbl.textContent = ddpOn ? 'Включено' : 'Выключено';
-  if (ddpLbl) ddpLbl.style.color = ddpOn ? '#60a5fa' : 'var(--MT)';
+  ddpLbl && (ddpLbl.style.color = ddpOn ? '#60a5fa' : 'var(--MT)');
 
+  badge.textContent = 'GP: ' + newGP + '%';
 
-  if (badge) badge.textContent = 'GP: ' + newGP + '%';
-  if (!salePrice) { if(res) res.style.display = 'none'; gpRenderTable(0, currentGP, newGP); return; }
-  var cost = salePrice * (1 - currentGP / 100);
+  if (!salePrice) { res.style.display = 'none'; gpRenderTable(0, currentGP, newGP); return; }
+
+  // Cost from current margin: cost = price * (1 - gp/100)
+  var cost     = salePrice * (1 - currentGP / 100);
+  // New price at new margin: newPrice = cost / (1 - newGP/100)
   var newPrice = cost / (1 - newGP / 100);
-  var diff = newPrice - salePrice;
+  var diff     = newPrice - salePrice;
   var newProfit = newPrice * (newGP / 100);
-  if(res) res.style.display = 'block';
-  var _e;
-  _e=gs('gp-res-cost');    if(_e) _e.textContent = '$ ' + fmtMoney(cost);
-  _e=gs('gp-res-price');   if(_e) _e.textContent = '$ ' + fmtMoney(newPrice);
-  _e=gs('gp-res-pct-label'); if(_e) _e.textContent = newGP;
-  _e=gs('gp-res-profit');  if(_e) _e.textContent = '$ ' + fmtMoney(newProfit);
-  var diffEl=gs('gp-res-diff'), diffSub=gs('gp-res-diff-sub'), diffCard=gs('gp-res-diff-card');
-  if(diffEl && diffSub && diffCard) {
-    if (Math.abs(diff) < 0.005) { diffEl.textContent='$ 0.00'; diffEl.style.color='var(--MT)'; diffSub.textContent='Без изменений'; diffCard.style.borderTopColor='var(--MT)'; }
-    else if (diff > 0) { diffEl.textContent='+ $ '+fmtMoney(diff); diffEl.style.color='var(--RD)'; diffSub.textContent='Цена выросла'; diffCard.style.cssText+='border-top-color:#ef4444 !important'; }
-    else { diffEl.textContent='- $ '+fmtMoney(Math.abs(diff)); diffEl.style.color='var(--GR)'; diffSub.textContent='Цена снизилась'; diffCard.style.cssText+='border-top-color:#22c55e !important'; }
+
+  res.style.display = 'block';
+  document.getElementById('gp-res-cost').textContent    = '$ ' + fmtMoney(cost);
+  document.getElementById('gp-res-price').textContent   = '$ ' + fmtMoney(newPrice);
+  document.getElementById('gp-res-pct-label').textContent = newGP;
+  document.getElementById('gp-res-profit').textContent  = '$ ' + fmtMoney(newProfit);
+
+  var diffEl   = document.getElementById('gp-res-diff');
+  var diffSub  = document.getElementById('gp-res-diff-sub');
+  var diffCard = document.getElementById('gp-res-diff-card');
+  if (Math.abs(diff) < 0.005) {
+    diffEl.textContent = '$ 0.00';
+    diffEl.style.color = 'var(--MT)';
+    diffSub.textContent = 'Без изменений';
+    diffCard.style.borderTopColor = 'var(--MT)';
+  } else if (diff > 0) {
+    diffEl.textContent = '+ $ ' + fmtMoney(diff);
+    diffEl.style.color = 'var(--RD)';
+    diffSub.textContent = 'Цена выросла';
+    diffCard.style.cssText += 'border-top-color:#ef4444 !important';
+  } else {
+    diffEl.textContent = '- $ ' + fmtMoney(Math.abs(diff));
+    diffEl.style.color = 'var(--GR)';
+    diffSub.textContent = 'Цена снизилась';
+    diffCard.style.cssText += 'border-top-color:#22c55e !important';
   }
-  var zipBlock=gs('gp-zip-block'), priceWithZip=newPrice;
+
+  // ===== ЗИП расчёт =====
+  var zipBlock = document.getElementById('gp-zip-block');
+  var priceWithZip = newPrice;
   if (zipNum !== null) {
     var zipAdjust = zipNum === 0 ? -2000 : zipNum;
     priceWithZip = newPrice + zipAdjust;
-    if(zipBlock) zipBlock.style.display='block';
-    _e=gs('gp-zip-adj');   if(_e) { _e.textContent=(zipAdjust>=0?'+ $ ':'- $ ')+fmtMoney(Math.abs(zipAdjust)); _e.style.color = zipAdjust < 0 ? 'var(--RD)' : 'var(--GR)'; }
-    _e=gs('gp-zip-sub');   if(_e) _e.textContent=zipNum===0?'ЗИП = 0 → вычитается $2 000 из цены':'ЗИП добавлен к цене продажи';
-    _e=gs('gp-zip-price'); if(_e) _e.textContent='$ '+fmtMoney(priceWithZip);
-  } else { if(zipBlock) zipBlock.style.display='none'; }
-  var ddpBlock=gs('gp-ddp-block');
+    if (zipBlock) zipBlock.style.display = 'block';
+    document.getElementById('gp-zip-adj').textContent = (zipAdjust >= 0 ? '+ $ ' : '- $ ') + fmtMoney(Math.abs(zipAdjust));
+    document.getElementById('gp-zip-sub').textContent = zipNum === 0 ? 'ЗИП = 0 → вычитается $2 000' : 'ЗИП включён в стоимость';
+    document.getElementById('gp-zip-price').textContent = '$ ' + fmtMoney(priceWithZip);
+  } else {
+    if (zipBlock) zipBlock.style.display = 'none';
+  }
+
+  // ===== DDP расчёт =====
+  var ddpBlock = document.getElementById('gp-ddp-block');
   if (ddpOn) {
-    var nds=priceWithZip*0.12, duty=priceWithZip*0.054, nsp=priceWithZip*0.01, total=priceWithZip+nds+duty+nsp;
-    if(ddpBlock) ddpBlock.style.display='block';
-    _e=gs('gp-ddp-nds');       if(_e) _e.textContent='$ '+fmtMoney(nds);
-    _e=gs('gp-ddp-duty');      if(_e) _e.textContent='$ '+fmtMoney(duty);
-    _e=gs('gp-ddp-nsp');       if(_e) _e.textContent='$ '+fmtMoney(nsp);
-    _e=gs('gp-ddp-total');     if(_e) _e.textContent='$ '+fmtMoney(total);
-    _e=gs('gp-ddp-total-sub'); if(_e) _e.textContent='Итого с НДС ('+fmtMoney(nds)+') + Пошлина ('+fmtMoney(duty)+') + НСП ('+fmtMoney(nsp)+')';
-  } else { if(ddpBlock) ddpBlock.style.display='none'; }
-  var costPct=(1-newGP/100)*100;
-  _e=gs('gp-bar-cost');    if(_e) _e.style.width=costPct+'%';
-  _e=gs('gp-bar-profit');  if(_e) _e.style.width=newGP+'%';
-  _e=gs('gp-barv-cost');   if(_e) _e.textContent=costPct.toFixed(1)+'%';
-  _e=gs('gp-barv-profit'); if(_e) _e.textContent=parseFloat(newGP).toFixed(1)+'%';
+    var base    = priceWithZip; // считаем от цены с ЗИП (или без)
+    var nds     = base * 0.12;
+    var duty    = base * 0.054;
+    var nsp     = base * 0.01;
+    var total   = base + nds + duty + nsp;
+    if (ddpBlock) ddpBlock.style.display = 'block';
+    document.getElementById('gp-ddp-nds').textContent   = '$ ' + fmtMoney(nds);
+    document.getElementById('gp-ddp-duty').textContent  = '$ ' + fmtMoney(duty);
+    document.getElementById('gp-ddp-nsp').textContent   = '$ ' + fmtMoney(nsp);
+    document.getElementById('gp-ddp-total').textContent = '$ ' + fmtMoney(total);
+    document.getElementById('gp-ddp-total-sub').textContent = 'Итого с НДС (' + fmtMoney(nds) + ') + Пошлина (' + fmtMoney(duty) + ') + НСП (' + fmtMoney(nsp) + ')';
+  } else {
+    if (ddpBlock) ddpBlock.style.display = 'none';
+  }
+
+  // Bar widths
+  var costPct   = (1 - newGP / 100) * 100;
+  var profPct   = newGP;
+  document.getElementById('gp-bar-cost').style.width   = costPct + '%';
+  document.getElementById('gp-bar-profit').style.width = profPct + '%';
+  document.getElementById('gp-barv-cost').textContent   = costPct.toFixed(1) + '%';
+  document.getElementById('gp-barv-profit').textContent = profPct.toFixed(1) + '%';
+
   gpRenderTable(salePrice, currentGP, newGP);
 }
+
 
 function fmtMoney(n) {
   return Number(n).toLocaleString('ru-RU', {minimumFractionDigits:2, maximumFractionDigits:2});
@@ -3762,6 +3790,7 @@ function gpRenderTable(salePrice, currentGP, newGP) {
     tbody.appendChild(tr);
   });
 }
+
 
 function renderCalc() {
   gpCalc();
