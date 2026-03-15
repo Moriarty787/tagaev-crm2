@@ -1295,8 +1295,7 @@ body.sem-theme::after {
 <div class="sidebar" id="sidebar">
   <div class="sb-header">
     <div style="display:flex;align-items:center;gap:8px">
-      <div class="catbadge">CAT</div>
-      <span style="font-weight:800;color:var(--Y);font-size:.88rem">TAGAEV</span>
+      <div class="catbadge" style="font-size:.62rem;letter-spacing:-.5px;">my.crm</div>
     </div>
     <button class="sb-close" id="btnCloseSB"><i class="fas fa-times"></i></button>
   </div>
@@ -3106,8 +3105,17 @@ function doImport(input) {
   reader.onload = function(e) {
     try {
       var data = JSON.parse(e.target.result);
-      if (data.clients && Array.isArray(data.clients)) clients = data.clients;
-      else if (Array.isArray(data)) clients = data;
+      var imported = [];
+      if (data.clients && Array.isArray(data.clients)) imported = data.clients;
+      else if (Array.isArray(data)) imported = data;
+      // Ensure each client has prob >= 10
+      imported = imported.map(function(c) {
+        if (!c.prob || parseInt(c.prob) < 1) c.prob = '10';
+        if (!c.id) c.id = 'imp_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+        if (!c.stages) c.stages = new Array(STAGES.length).fill(false);
+        return c;
+      });
+      clients = imported;
       if (data.tasks    && Array.isArray(data.tasks))   tasks = data.tasks;
       if (data.pdfStore) pdfStore = data.pdfStore;
       saveAll(); renderDash(); renderCards(); renderWataCards(); updBadges();
@@ -3706,8 +3714,8 @@ function gpCalc() {
     var zipAdjust = zipNum === 0 ? -2000 : zipNum;
     priceWithZip = newPrice + zipAdjust;
     if(zipBlock) zipBlock.style.display='block';
-    _e=gs('gp-zip-adj');   if(_e) _e.textContent=(zipAdjust>=0?'+ $ ':'- $ ')+fmtMoney(Math.abs(zipAdjust));
-    _e=gs('gp-zip-sub');   if(_e) _e.textContent=zipNum===0?'ЗИП = 0 → вычитается $2 000':'ЗИП включён в стоимость';
+    _e=gs('gp-zip-adj');   if(_e) { _e.textContent=(zipAdjust>=0?'+ $ ':'- $ ')+fmtMoney(Math.abs(zipAdjust)); _e.style.color = zipAdjust < 0 ? 'var(--RD)' : 'var(--GR)'; }
+    _e=gs('gp-zip-sub');   if(_e) _e.textContent=zipNum===0?'ЗИП = 0 → вычитается $2 000 из цены':'ЗИП добавлен к цене продажи';
     _e=gs('gp-zip-price'); if(_e) _e.textContent='$ '+fmtMoney(priceWithZip);
   } else { if(zipBlock) zipBlock.style.display='none'; }
   var ddpBlock=gs('gp-ddp-block');
@@ -3762,30 +3770,56 @@ function renderCalc() {
 // ==================== EXCEL EXPORT ====================
 function doExportExcel() {
   if (typeof XLSX === 'undefined') { toast('⚠️ Загружаю XLSX...'); return; }
+  var stageNames = STAGES || [];
   var data = clients.map(function(c) {
     var row = {};
-    if (c.name)    row['Имя / Компания'] = c.name;
-    if (c.phone)   row['Телефон'] = c.phone;
-    if (c.brand)   row['Бренд'] = c.brand;
-    if (c.model)   row['Модель'] = c.model;
-    if (c.year)    row['Год'] = c.year;
-    if (c.price)   row['Цена ($)'] = c.price;
-    if (c.prob)    row['Вероятность (%)'] = c.prob;
-    if (c.partner) row['Партнёр'] = c.partner;
-    row['Статус'] = c.sold ? 'Продан' : (c.wata ? 'Вата' : 'Активный');
-    if (c.source)  row['Источник'] = c.source;
-    if (c.region)  row['Регион'] = c.region;
-    if (c.comment) row['Комментарий'] = c.comment;
-    if (c.meet)    row['Встреча'] = c.meet;
-    if (c.date)    row['Дата'] = c.date;
-    if (c.stage)   row['Этап'] = c.stage;
+    row['Имя / Компания']   = c.name || '';
+    row['Телефон']          = c.phone || '';
+    row['Город']            = c.city || '';
+    row['Бренд']            = c.brand || '';
+    row['Модель']           = c.model || '';
+    row['Кол-во (ед.)']     = c.units || 1;
+    row['Цена (USD)']       = c.price ? parseFloat(c.price) : '';
+    row['Вероятность (%)']  = c.prob ? parseInt(c.prob) : 0;
+    row['Партнёр/Банк']     = c.partner || '';
+    row['Статус']           = c.sold ? 'Продан' : (parseInt(c.prob) < 10 ? 'Вата' : 'Активный');
+    row['Комментарий']      = c.notes || c.comment || '';
+    row['Встреча']          = c.meet || '';
+    // Stages
+    if (c.stages && Array.isArray(c.stages)) {
+      var done = c.stages.filter(Boolean).length;
+      row['Этапов выполнено'] = done + ' / ' + stageNames.length;
+      // Current stage
+      var lastDone = -1;
+      for (var si = 0; si < c.stages.length; si++) { if (c.stages[si]) lastDone = si; }
+      row['Текущий этап'] = lastDone >= 0 ? stageNames[lastDone] : 'Не начат';
+    }
+    row['Дата добавления'] = c.ts ? new Date(c.ts).toLocaleDateString('ru-RU') : '';
     return row;
   });
   var ws = XLSX.utils.json_to_sheet(data);
-  ws['!cols'] = [{wch:24},{wch:16},{wch:12},{wch:20},{wch:6},{wch:12},{wch:12},{wch:16},{wch:12},{wch:14},{wch:14},{wch:32},{wch:20},{wch:14},{wch:12}];
+  ws['!cols'] = [
+    {wch:28},{wch:18},{wch:16},{wch:8},{wch:20},{wch:8},{wch:14},{wch:12},
+    {wch:20},{wch:10},{wch:36},{wch:20},{wch:16},{wch:28},{wch:16}
+  ];
+  // Style header row bold
+  var range = XLSX.utils.decode_range(ws['!ref']);
+  for (var C = range.s.c; C <= range.e.c; C++) {
+    var addr = XLSX.utils.encode_cell({r:0, c:C});
+    if (!ws[addr]) continue;
+    ws[addr].s = { font: { bold: true }, fill: { fgColor: { rgb: 'FFCD11' } } };
+  }
   var wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Клиенты');
-  XLSX.writeFile(wb, 'crm_clients_' + new Date().toISOString().slice(0,10) + '.xlsx');
+  XLSX.utils.book_append_sheet(wb, ws, 'Заказчики');
+  // Also add sold sheet
+  var soldData = clients.filter(function(c){ return c.sold; }).map(function(c){
+    return { 'Имя / Компания': c.name||'', 'Телефон': c.phone||'', 'Бренд': c.brand||'', 'Модель': c.model||'', 'Цена (USD)': c.price ? parseFloat(c.price) : '' };
+  });
+  if (soldData.length > 0) {
+    var wsSold = XLSX.utils.json_to_sheet(soldData);
+    XLSX.utils.book_append_sheet(wb, wsSold, 'Проданные');
+  }
+  XLSX.writeFile(wb, 'crm_заказчики_' + new Date().toISOString().slice(0,10) + '.xlsx');
   toast('📊 Excel экспорт выполнен!');
 }
 
@@ -3842,7 +3876,7 @@ function xlsxParseRow(row) {
   var phone = xlsxFindVal(row, ['телефон','phone','тел','моб','mobile','номер','number','cel','cell','whatsapp']);
   var eq    = xlsxFindEquipment(row);
   var price = xlsxFindVal(row, ['цена','price','стоим','сумм','amount','cost']);
-  var prob  = xlsxFindVal(row, ['вероятн','prob','процент','percent','шанс']);
+  var prob  = xlsxFindVal(row, ['вероятн','prob','процент','percent','шанс']) || '10';
   var partner = xlsxFindVal(row, ['партнёр','партнер','partner','дилер','dealer','агент','agent']);
   var source  = xlsxFindVal(row, ['источник','source','откуда','канал','channel']);
   var region  = xlsxFindVal(row, ['регион','region','город','city','oblast','область','район']);
@@ -3858,7 +3892,7 @@ function xlsxParseRow(row) {
     year:    eq.year   || '',
     equipLabel: eq.label || '',
     price:   price   || '',
-    prob:    prob    || '50',
+    prob:    prob    || '10',
     partner: partner || '',
     source:  source  || '',
     region:  region  || '',
