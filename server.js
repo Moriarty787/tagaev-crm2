@@ -39,6 +39,10 @@ async function initDB() {
       updated_at TIMESTAMPTZ DEFAULT NOW()
     )
   `);
+  // Исправляем тип updated_at в clients и tasks (bigint → timestamptz)
+  await pool.query(`ALTER TABLE clients ALTER COLUMN updated_at TYPE TIMESTAMPTZ USING to_timestamp(updated_at/1000.0)`).catch(()=>{});
+  await pool.query(`ALTER TABLE tasks   ALTER COLUMN updated_at TYPE TIMESTAMPTZ USING to_timestamp(updated_at/1000.0)`).catch(()=>{});
+
   // Всегда пересоздаём chat_messages чтобы схема была правильной
   await pool.query(`DROP TABLE IF EXISTS chat_messages`);
   await pool.query(`
