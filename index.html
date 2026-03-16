@@ -1731,23 +1731,36 @@ var clients = [], tasks = [], curId = null, taskFilter = 'all', stgOpen = {}, pd
 var chF = null, chD = null, chT = null;
 
 // ==================== STORAGE ====================
+var _saveTimer = null;
 function saveAll() {
-  try {
-    localStorage.setItem('crm26', JSON.stringify(clients));
-    localStorage.setItem('crm26t', JSON.stringify(tasks));
-    localStorage.setItem('crm26p', JSON.stringify(pdfStore));
-  } catch(e) {}
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(function() {
+    fetch('/api/clients/sync', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({clients:clients}) }).catch(function(){});
+    fetch('/api/tasks/sync',   { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({tasks:tasks})     }).catch(function(){});
+  }, 800);
+  try { localStorage.setItem('crm26p', JSON.stringify(pdfStore)); } catch(e) {}
   if (typeof updBgChart === 'function') updBgChart();
 }
 function loadAll() {
-  try {
-    var c = localStorage.getItem('crm26') || localStorage.getItem('crm2026');
-    if (c) clients = JSON.parse(c);
-    var t = localStorage.getItem('crm26t');
-    if (t) tasks = JSON.parse(t);
-    var p = localStorage.getItem('crm26p');
-    if (p) pdfStore = JSON.parse(p);
-  } catch(e) {}
+  // данные грузятся с сервера после логина через loadFromServer()
+  try { var p = localStorage.getItem('crm26p'); if (p) pdfStore = JSON.parse(p); } catch(e) {}
+}
+function loadFromServer(cb) {
+  Promise.all([
+    fetch('/api/clients').then(function(r){ return r.text(); }),
+    fetch('/api/tasks').then(function(r){ return r.text(); })
+  ]).then(function(results) {
+    try { var c = JSON.parse(results[0]); if (Array.isArray(c)) clients = c; } catch(e){}
+    try { var t = JSON.parse(results[1]); if (Array.isArray(t)) tasks   = t; } catch(e){}
+    if (typeof cb === 'function') cb();
+    // Миграция: если сервер пустой а в localStorage есть данные — заливаем
+    if (clients.length === 0) {
+      try { var lc = localStorage.getItem('crm26') || localStorage.getItem('crm2026'); if (lc) { clients = JSON.parse(lc); saveAll(); } } catch(e){}
+    }
+    if (tasks.length === 0) {
+      try { var lt = localStorage.getItem('crm26t'); if (lt) { tasks = JSON.parse(lt); saveAll(); } } catch(e){}
+    }
+  }).catch(function(){ if (typeof cb === 'function') cb(); });
 }
 
 // ==================== UTILS ====================
@@ -2846,13 +2859,19 @@ function clearAll() {
 // ==================== EVENT LISTENERS ====================
 
 // ==================== ACCOUNTS ====================
-var ACCOUNTS = {
-  'v371nt': { pass: '1221Nt', name: 'Нурбек Тагаев', role: 'admin' }
-};
+var ACCOUNTS = {};  // загружается с сервера
 var CHAT_KEY  = 'crm_chat_v1';
 var CHAT_DM_KEY = 'crm_dm_v1';
 var CHAT_RESET_KEY = 'crm_chat_reset';
 var CHAT_TTL  = 24 * 60 * 60 * 1000;
+var _dmPollInterval = null;
+var _lastDmTs = 0;
+function loadAccounts(cb) {
+  fetch('/api/accounts').then(function(r){ return r.text(); }).then(function(txt) {
+    try { var d = JSON.parse(txt); if (d && !d.error) ACCOUNTS = d; } catch(e){}
+    if (typeof cb === 'function') cb();
+  }).catch(function(){ if (typeof cb === 'function') cb(); });
+}
 var chatCurrentTab = 'all'; // 'all' | 'dm'
 var chatDmTarget = ''; // login получателя
 
@@ -2903,67 +2922,77 @@ function validateLogin(login, pass) {
   return { ok:true, account: ACCOUNTS[login] };
 }
 function doLogin() {
-  var login = (document.getElementById('login-input').value || '').trim().toLowerCase();
-  var pass  =  document.getElementById('pass-input').value || '';
-  var res = validateLogin(login, pass);
-  var errEl = document.getElementById('login-error');
-  if (!res.ok) {
-    errEl.textContent = res.msg; errEl.style.display = 'block';
-    setTimeout(function(){ errEl.style.display = 'none'; }, 3500);
-    return;
-  }
-  currentUser = { login: login, name: res.account.name, role: res.account.role };
-  var log = JSON.parse(localStorage.getItem('crm_login_log') || '[]');
-  log.unshift({ login: login, name: res.account.name, time: Date.now() });
-  localStorage.setItem('crm_login_log', JSON.stringify(log.slice(0, 50)));
-  document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('main-app').style.display = '';
-  document.getElementById('chat-widget').style.display = 'block';
-  var adminBtn = document.getElementById('sb-admin');
-  if (adminBtn) adminBtn.style.display = currentUser.role === 'admin' ? '' : 'none';
-  var badge = document.getElementById('topbar-user');
-  if (badge) { badge.textContent = currentUser.name; badge.style.display = ''; }
-  chatLoad();
-  // Рисуем фоновый график ПОСЛЕ того как main-app стал видимым
-  setTimeout(drawBgChart, 100);
+  var loginVal = (document.getElementById('login-input').value || '').trim().toLowerCase();
+  var pass     =  document.getElementById('pass-input').value || '';
+  var errEl    = document.getElementById('login-error');
+  var btn      = document.getElementById('login-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Вход...'; }
+  loadAccounts(function() {
+    if (btn) { btn.disabled = false; btn.textContent = 'Войти'; }
+    var res = validateLogin(loginVal, pass);
+    if (!res.ok) {
+      errEl.textContent = res.msg; errEl.style.display = 'block';
+      setTimeout(function(){ errEl.style.display = 'none'; }, 3500);
+      return;
+    }
+    currentUser = { login: loginVal, name: res.account.name, role: res.account.role };
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('main-app').style.display = '';
+    document.getElementById('chat-widget').style.display = 'block';
+    var adminBtn = document.getElementById('sb-admin');
+    if (adminBtn) adminBtn.style.display = currentUser.role === 'admin' ? '' : 'none';
+    var badge = document.getElementById('topbar-user');
+    if (badge) { badge.textContent = currentUser.name; badge.style.display = ''; }
+    loadFromServer(function() {
+      updBadges(); renderDash(); renderChar();
+    });
+    chatLoad();
+    startDmPolling();
+    setTimeout(drawBgChart, 100);
+  });
 }
-function chatGetMsgs() {
-  var resetAt = parseInt(localStorage.getItem(CHAT_RESET_KEY) || '0');
-  if (Date.now() - resetAt > CHAT_TTL) {
-    localStorage.setItem(CHAT_KEY, '[]');
-    localStorage.setItem(CHAT_RESET_KEY, String(Date.now()));
-  }
-  return JSON.parse(localStorage.getItem(CHAT_KEY) || '[]');
+function chatGetMsgs(cb) {
+  fetch('/api/chat?type=all').then(function(r){ return r.text(); }).then(function(txt){
+    try { cb(JSON.parse(txt)); } catch(e){ cb([]); }
+  }).catch(function(){ cb([]); });
 }
-function chatGetDMs() { return JSON.parse(localStorage.getItem(CHAT_DM_KEY) || '[]'); }
-function chatSaveMsgs(msgs) { localStorage.setItem(CHAT_KEY, JSON.stringify(msgs)); }
-function chatSaveDMs(dms) { localStorage.setItem(CHAT_DM_KEY, JSON.stringify(dms)); }
+function chatGetDMs(u1, u2, cb) {
+  fetch('/api/chat?type=dm&user1='+encodeURIComponent(u1)+'&user2='+encodeURIComponent(u2))
+    .then(function(r){ return r.text(); }).then(function(txt){
+      try { cb(JSON.parse(txt)); } catch(e){ cb([]); }
+    }).catch(function(){ cb([]); });
+}
+function chatSaveMsgs(msgs) {} // не используется — данные на сервере
+function chatSaveDMs(dms)  {} // не используется — данные на сервере
+function chatPostMsg(msg) {
+  fetch('/api/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(msg) }).catch(function(){});
+}
 
 function chatLoad() {
   var cont = document.getElementById('chat-messages');
   if (!cont || !currentUser) return;
-  cont.innerHTML = '';
   if (chatCurrentTab === 'all') {
-    var msgs = chatGetMsgs();
-    msgs.forEach(function(m){ chatRenderMsg(m, cont, false); });
-  } else {
-    // DM — показываем переписку между мной и выбранным пользователем
-    var dms = chatGetDMs();
-    var partner = chatDmTarget;
-    var myLogin = currentUser.login;
-    var conv = dms.filter(function(m) {
-      return (m.login === myLogin && m.to === partner) ||
-             (m.login === partner && m.to === myLogin);
+    chatGetMsgs(function(msgs) {
+      cont.innerHTML = '';
+      msgs.forEach(function(m){ chatRenderMsg(m, cont, false); });
+      chatScrollBottom();
     });
+  } else {
+    var partner = chatDmTarget;
     if (!partner) {
       cont.innerHTML = '<div style="text-align:center;color:var(--DM);font-size:.75rem;padding:20px;">Выберите пользователя выше</div>';
-    } else if (conv.length === 0) {
-      cont.innerHTML = '<div style="text-align:center;color:var(--DM);font-size:.75rem;padding:20px;">Нет сообщений. Напишите первым!</div>';
-    } else {
-      conv.forEach(function(m){ chatRenderMsg(m, cont, true); });
+      return;
     }
+    chatGetDMs(currentUser.login, partner, function(conv) {
+      cont.innerHTML = '';
+      if (conv.length === 0) {
+        cont.innerHTML = '<div style="text-align:center;color:var(--DM);font-size:.75rem;padding:20px;">Нет сообщений. Напишите первым!</div>';
+      } else {
+        conv.forEach(function(m){ chatRenderMsg(m, cont, true); });
+      }
+      chatScrollBottom();
+    });
   }
-  chatScrollBottom();
   chatUpdateTimer();
   chatUpdUnread();
 }
@@ -2971,9 +3000,9 @@ function chatLoad() {
 function chatRenderMsg(m, cont, isDm) {
   var isMe = currentUser && m.login === currentUser.login;
   var el = document.createElement('div');
-  if (m.type === 'system') {
+  if (m.type === 'system' || m.msgtype === 'system') {
     el.style.cssText = 'background:rgba(255,205,17,.08);border:1px solid rgba(255,205,17,.15);border-radius:8px;padding:7px 12px;font-size:.72rem;color:var(--Y);text-align:center;';
-    el.innerHTML = '<i class="fas fa-bullhorn" style="margin-right:4px;opacity:.7;"></i>' + esc(m.text) + '<div style="font-size:.58rem;color:var(--DM);margin-top:2px;">' + fmtTs(m.time) + '</div>';
+    el.innerHTML = '<i class="fas fa-bullhorn" style="margin-right:4px;opacity:.7;"></i>' + esc(m.text) + '<div style="font-size:.58rem;color:var(--DM);margin-top:2px;">' + fmtTs(m.ts||m.time) + '</div>';
   } else {
     el.style.cssText = 'display:flex;flex-direction:column;align-items:' + (isMe?'flex-end':'flex-start') + ';';
     var b = document.createElement('div');
@@ -2983,7 +3012,7 @@ function chatRenderMsg(m, cont, isDm) {
     var dc = isMe ? 'rgba(0,0,0,.35)' : 'var(--DM)';
     b.style.cssText = 'max-width:84%;background:' + bg + ';color:' + tc + ';border-radius:' + (isMe?'12px 12px 2px 12px':'12px 12px 12px 2px') + ';padding:8px 11px;font-size:.79rem;word-break:break-word;';
     var dmBadge = (isDm && !isMe) ? '<span style="font-size:.58rem;background:rgba(239,68,68,.15);color:#ef4444;border-radius:4px;padding:1px 5px;margin-left:4px;">личное</span>' : '';
-    b.innerHTML = '<div style="font-size:.6rem;font-weight:700;color:' + nc + ';margin-bottom:3px;">' + esc(isMe ? 'Вы' : (m.name||m.login)) + dmBadge + '</div>' + esc(m.text) + '<div style="font-size:.57rem;color:' + dc + ';margin-top:3px;text-align:right;">' + fmtTs(m.time) + '</div>';
+    b.innerHTML = '<div style="font-size:.6rem;font-weight:700;color:' + nc + ';margin-bottom:3px;">' + esc(isMe ? 'Вы' : (m.name||m.login)) + dmBadge + '</div>' + esc(m.text) + '<div style="font-size:.57rem;color:' + dc + ';margin-top:3px;text-align:right;">' + fmtTs(m.ts||m.time) + '</div>';
     el.appendChild(b);
   }
   cont.appendChild(el);
@@ -2996,44 +3025,71 @@ function chatSend() {
   var txt = (inp?inp.value:'').trim();
   if (!txt || !currentUser) return;
   var now = Date.now();
+  var msg;
   if (chatCurrentTab === 'dm') {
     var target = document.getElementById('chat-dm-target');
     var to = target ? target.value : '';
     if (!to) { toast('⚠️ Выберите получателя'); return; }
-    var dms = chatGetDMs();
-    dms.push({ login: currentUser.login, name: currentUser.name, to: to, text: txt, time: now });
-    chatSaveDMs(dms);
+    msg = { type:'dm', login:currentUser.login, name:currentUser.name, to:to, text:txt, ts:now };
   } else {
-    var msgs = chatGetMsgs();
-    msgs.push({ login: currentUser.login, name: currentUser.name, text: txt, time: now });
-    chatSaveMsgs(msgs);
+    msg = { type:'all', login:currentUser.login, name:currentUser.name, text:txt, ts:now };
   }
   if (inp) inp.value = '';
-  chatLoad();
+  chatPostMsg(msg);
+  setTimeout(chatLoad, 300);
 }
 
 function chatUpdUnread() {
-  // Показываем бейдж если есть непрочитанные DM
-  var badge = document.getElementById('chat-unread-badge');
-  if (!badge || !currentUser) return;
-  var dms = chatGetDMs();
-  var lastOpen = parseInt(localStorage.getItem('crm_chat_last_open_' + currentUser.login) || '0');
-  var unread = dms.filter(function(m){ return m.to === currentUser.login && m.time > lastOpen; }).length;
-  badge.textContent = unread > 0 ? (unread > 9 ? '9+' : unread) : '';
-  badge.style.display = unread > 0 ? 'flex' : 'none';
+  if (!currentUser) return;
+  fetch('/api/chat/unread?login='+encodeURIComponent(currentUser.login)+'&since='+_lastDmTs)
+    .then(function(r){ return r.text(); }).then(function(txt){
+      var unread = [];
+      try { unread = JSON.parse(txt); } catch(e){}
+      if (!Array.isArray(unread)) return;
+      var badge = document.getElementById('chat-unread-badge');
+      var chatOpen = document.getElementById('chat-box') && document.getElementById('chat-box').style.display !== 'none';
+      unread.forEach(function(m) {
+        if (m.ts > _lastDmTs) showDmToast(m);
+      });
+      if (unread.length > 0) {
+        _lastDmTs = Math.max.apply(null, unread.map(function(m){ return m.ts||0; }));
+        if (badge) { badge.textContent = unread.length > 9 ? '9+' : unread.length; badge.style.display = 'flex'; }
+        if (chatOpen) chatLoad();
+      }
+    }).catch(function(){});
+}
+function showDmToast(m) {
+  var el = document.createElement('div');
+  el.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%) translateY(-80px);z-index:99999;background:#1a1a1a;border:1px solid rgba(255,205,17,.35);border-radius:14px;padding:11px 15px;display:flex;align-items:center;gap:11px;box-shadow:0 8px 32px rgba(0,0,0,.7);cursor:pointer;max-width:320px;width:90vw;transition:transform .35s cubic-bezier(.34,1.36,.64,1),opacity .3s;opacity:0;';
+  el.innerHTML = '<div style="width:34px;height:34px;border-radius:50%;background:rgba(255,205,17,.15);border:1.5px solid rgba(255,205,17,.4);display:flex;align-items:center;justify-content:center;font-size:.95rem;flex-shrink:0;">💬</div><div style="flex:1;min-width:0;"><div style="font-size:.68rem;color:var(--Y);font-weight:800;margin-bottom:2px;">✉️ ' + esc(m.name||m.login) + '</div><div style="font-size:.8rem;color:#ddd;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(m.text) + '</div></div>';
+  document.body.appendChild(el);
+  setTimeout(function(){ el.style.transform='translateX(-50%) translateY(0)'; el.style.opacity='1'; }, 20);
+  el.onclick = function() {
+    document.getElementById('chat-box').style.display = 'block';
+    chatCurrentTab = 'dm'; chatDmTarget = m.login;
+    chatPopulateDmTargets(); chatLoad(); dismissToast(el);
+  };
+  var t = setTimeout(function(){ dismissToast(el); }, 6000);
+  el.onmouseenter = function(){ clearTimeout(t); };
+  el.onmouseleave = function(){ t = setTimeout(function(){ dismissToast(el); }, 3000); };
+}
+function dismissToast(el) {
+  el.style.transform='translateX(-50%) translateY(-80px)'; el.style.opacity='0';
+  setTimeout(function(){ if(el.parentNode) el.parentNode.removeChild(el); }, 400);
+}
+function startDmPolling() {
+  if (_dmPollInterval) clearInterval(_dmPollInterval);
+  if (_lastDmTs === 0) _lastDmTs = Date.now() - 5000;
+  _dmPollInterval = setInterval(chatUpdUnread, 5000);
 }
 
 function chatUpdateTimer() {
   var el = document.getElementById('chat-reset-info');
-  if (!el) return;
-  var resetAt = parseInt(localStorage.getItem(CHAT_RESET_KEY)||'0');
-  var diff = (resetAt + CHAT_TTL) - Date.now();
-  if (diff > 0) { el.textContent = Math.floor(diff/3600000) + 'ч ' + Math.floor((diff%3600000)/60000) + 'м'; }
-  else { el.textContent = ''; }
+  if (el) el.textContent = '';
 }
 function fmtTs(ts) { var d=new Date(ts); return d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})+' '+d.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'}); }
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-setInterval(function(){ if(currentUser && document.getElementById('chat-box') && document.getElementById('chat-box').style.display!=='none') chatLoad(); }, 30000);
+setInterval(function(){ if(currentUser && document.getElementById('chat-box') && document.getElementById('chat-box').style.display!=='none') chatLoad(); }, 10000);
 
 function openAdminPanel() {
   if (!currentUser||currentUser.role!=='admin') return;
@@ -3093,6 +3149,9 @@ function saveProfile() {
   currentUser.name = name;
   var badge = document.getElementById('topbar-user');
   if (badge) badge.textContent = name;
+  var body = { login: currentUser.login, name: name };
+  if (pass) body.pass = pass;
+  fetch('/api/accounts/update', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) }).catch(function(){});
   document.getElementById('profile-modal').style.display = 'none';
   toast('✅ Профиль сохранён');
 }
@@ -3127,14 +3186,18 @@ function doRegister() {
   if (!/[A-Z]/.test(pass)) return showErr('Пароль должен содержать заглавную букву');
   if (!/[a-z]/.test(pass)) return showErr('Пароль должен содержать строчную букву');
   if (pass !== pass2) return showErr('Пароли не совпадают');
-  ACCOUNTS[login] = { pass: pass, name: name, role: 'user' };
-  okEl.textContent = 'Аккаунт создан! Теперь войдите с логином ' + login;
-  okEl.style.display = 'block';
-  setTimeout(function() {
-    closeRegister();
-    document.getElementById('login-input').value = login;
-    document.getElementById('pass-input').focus();
-  }, 1800);
+  fetch('/api/accounts/register', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({login:login,name:name,pass:pass}) })
+    .then(function(r){ return r.text(); }).then(function(txt) {
+      try { var d = JSON.parse(txt); if (d.error) return showErr(d.error); } catch(e){}
+      ACCOUNTS[login] = { pass: pass, name: name, role: 'user' };
+      okEl.textContent = 'Аккаунт создан! Войдите с логином ' + login;
+      okEl.style.display = 'block';
+      setTimeout(function() {
+        closeRegister();
+        document.getElementById('login-input').value = login;
+        document.getElementById('pass-input').focus();
+      }, 1800);
+    }).catch(function(){ showErr('Ошибка сети'); });
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -3546,11 +3609,12 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('xlsx-confirm-btn').addEventListener('click', xlsxConfirmImport);
 
   // Init
-  loadAll(); updBadges(); renderDash();
-  initCharCarousel(); renderChar();
+  loadAll(); // pdfStore только
+  initCharCarousel();
   initNotifications();
   checkTaskNotifications();
   initBgCanvas();
+  loadAccounts(function(){}); // предзагрузка
 
   // --- LOGIN ---
   document.getElementById('login-btn').addEventListener('click', doLogin);
@@ -3567,9 +3631,9 @@ document.addEventListener('DOMContentLoaded', function() {
       chatLoad();
       chatScrollBottom();
       // Отметить как прочитанное
-      if (currentUser) localStorage.setItem('crm_chat_last_open_' + currentUser.login, String(Date.now()));
+      _lastDmTs = Date.now();
       var badge = document.getElementById('chat-unread-badge');
-      if (badge) badge.style.display = 'none';
+      if (badge) { badge.style.display='none'; badge.textContent=''; }
     }
   });
   document.getElementById('chat-close-btn').addEventListener('click', function(){ document.getElementById('chat-box').style.display='none'; });
@@ -3579,8 +3643,8 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('sb-admin').addEventListener('click', function(){ openAdminPanel(); closeSB(); });
   document.getElementById('admin-close').addEventListener('click', function(){ document.getElementById('admin-panel').style.display='none'; });
   document.getElementById('admin-panel').addEventListener('click', function(e){ if(e.target===this) this.style.display='none'; });
-  document.getElementById('admin-clear-chat').addEventListener('click', function(){ if(!confirm('Очистить весь чат?')) return; localStorage.setItem(CHAT_KEY,'[]'); localStorage.setItem(CHAT_RESET_KEY,String(Date.now())); chatLoad(); toast('Чат очищен'); });
-  document.getElementById('admin-export-chat').addEventListener('click', function(){ var msgs=chatGetMsgs(); var txt=msgs.map(function(m){ return '['+new Date(m.time).toLocaleString('ru-RU')+'] '+(m.name||m.login)+': '+m.text; }).join('\n'); var a=document.createElement('a'); a.href='data:text/plain;charset=utf-8,'+encodeURIComponent(txt); a.download='chat_'+new Date().toLocaleDateString('ru-RU').replace(/\./g,'_')+'.txt'; a.click(); });
+  document.getElementById('admin-clear-chat').addEventListener('click', function(){ if(!confirm('Очистить весь чат?')) return; fetch('/api/chat',{method:'DELETE'}).then(function(){ chatLoad(); toast('Чат очищен'); }); });
+  document.getElementById('admin-export-chat').addEventListener('click', function(){ chatGetMsgs(function(msgs){ var txt=msgs.map(function(m){ return '['+(new Date(m.ts||m.time)).toLocaleString('ru-RU')+'] '+(m.name||m.login)+': '+m.text; }).join('\n'); var a=document.createElement('a'); a.href='data:text/plain;charset=utf-8,'+encodeURIComponent(txt); a.download='chat_'+new Date().toLocaleDateString('ru-RU').replace(/\./g,'_')+'.txt'; a.click(); }); });
   document.getElementById('admin-backup').addEventListener('click', function(){ doExport(); toast('💾 Резервная копия создана'); });
   document.getElementById('admin-reset-all').addEventListener('click', function(){ if(!confirm('Удалить ВСЕ данные?')) return; if(!confirm('Вы уверены?')) return; clearAll(); toast('Все данные удалены'); });
 
@@ -3601,12 +3665,9 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('admin-send-announce').addEventListener('click', function(){
     var txt = (document.getElementById('admin-announce-text').value || '').trim();
     if(!txt) return;
-    var msgs = chatGetMsgs();
-    msgs.push({type:'system', text:'📢 '+txt, login:'admin', name:'Администратор', time:Date.now()});
-    chatSaveMsgs(msgs);
+    chatPostMsg({type:'all', msgtype:'system', login:'admin', name:'Администратор', text:'📢 '+txt, ts:Date.now()});
     document.getElementById('admin-announce-text').value = '';
-    chatLoad();
-    toast('📢 Объявление отправлено');
+    setTimeout(function(){ chatLoad(); toast('📢 Объявление отправлено'); }, 300);
   });
 
 }); // конец второго DOMContentLoaded
