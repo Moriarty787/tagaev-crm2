@@ -443,14 +443,14 @@ body.sem-theme .tnav:hover{color:#F5C400;background:rgba(245,196,0,.12);}
 body.sem-theme .tnav.active{color:#F5C400;background:rgba(245,196,0,.15);}
 body.sem-theme .tbbtn{border-color:rgba(255,255,255,.25);color:rgba(255,255,255,.8);}
 body.sem-theme .tbbtn:hover{border-color:#F5C400;color:#F5C400;}
-body.sem-theme .panel{background:#fff;border-color:rgba(30,80,180,.12);}
+body.sem-theme .panel{background:#fff;border:1.5px solid rgba(30,80,180,.25) !important;}
 body.sem-theme .panel-h{background:#e8eef8;}
 body.sem-theme .panel-title{color:#1a56db;}
-body.sem-theme .kpi{background:#fff;border-color:rgba(30,80,180,.12);}
+body.sem-theme .kpi{background:#fff;border:1.5px solid rgba(30,80,180,.25) !important;}
 body.sem-theme .kpi::before{background:#1a56db;}
 body.sem-theme .kpi-v{color:#1a56db;}
 body.sem-theme .kpi-l{color:#4a6fa5;}
-body.sem-theme .card{background:#fff;border-color:rgba(30,80,180,.12);}
+body.sem-theme .card{background:#fff;border:1.5px solid rgba(30,80,180,.25) !important;}
 body.sem-theme .card:hover{border-color:#1a56db;box-shadow:0 8px 32px rgba(26,86,219,.15),0 0 0 1px #1a56db;}
 body.sem-theme .cbody{background:#fff;}
 body.sem-theme .card-meta{background:#e8eef8;}
@@ -483,7 +483,7 @@ body.sem-theme .backbtn:hover{border-color:#1a56db;color:#1a56db;}
 body.sem-theme .det-hero,.body.sem-theme .dsec{background:#fff;border-color:rgba(30,80,180,.12);}
 body.sem-theme .dfld p{background:#e8eef8;border-color:rgba(30,80,180,.1);}
 body.sem-theme .notes-box{background:#e8eef8;border-color:rgba(30,80,180,.1);color:#4a6fa5;}
-body.sem-theme .task-item{background:#fff;border-color:rgba(30,80,180,.12);}
+body.sem-theme .task-item{background:#fff;border:1.5px solid rgba(30,80,180,.25) !important;}
 body.sem-theme .task-item:hover{border-color:#1a56db;}
 body.sem-theme .tdg-lbl{color:#8aaad8;}
 body.sem-theme .tdg-lbl.today{color:#1a56db;}
@@ -614,7 +614,7 @@ body.sem-theme .kpi-l{color:#4a6fa5;}
 .kpi::after{content:'→';position:absolute;bottom:10px;right:12px;font-size:.75rem;color:var(--Y);opacity:0;transition:opacity .2s;}
 .kpi:hover::after{opacity:1;}
 body.sem-theme .kpi::after{color:#1a56db;}
-body.sem-theme .kpi{background:#fff;border-color:rgba(30,80,180,.12);}
+body.sem-theme .kpi{background:#fff;border:1.5px solid rgba(30,80,180,.25) !important;}
 body.sem-theme .kpi::before{background:#1a56db;}
 body.sem-theme .kpi:hover{border-color:#1a56db;box-shadow:0 6px 20px rgba(26,86,219,.15);}
 .cstripe{height:5px;position:relative;}
@@ -3168,27 +3168,22 @@ function openAdminPanel() {
   // Stats
   var sold  = clients.filter(function(c){return c.sold;}).length;
   var hot   = clients.filter(function(c){return parseInt(c.prob)>=70&&!c.sold;}).length;
-  var msgs  = chatGetMsgs();
   var tdone = tasks.filter(function(t){return t.done;}).length;
-  var stats = [
+  var sg = document.getElementById('admin-stats-grid');
+  if (sg) sg.innerHTML = [
     {i:'👥',l:'Клиентов',v:clients.length,c:'#60a5fa'},
     {i:'✅',l:'Продано',v:sold,c:'#22c55e'},
     {i:'🔥',l:'Горячих',v:hot,c:'#ef4444'},
     {i:'📋',l:'Задач',v:tasks.length,c:'#FFCD11'},
-    {i:'☑️',l:'Выполнено',v:tdone,c:'#22c55e'},
-    {i:'💬',l:'Сообщений',v:msgs.length,c:'#a78bfa'}
-  ];
-  var sg = document.getElementById('admin-stats-grid');
-  if (sg) sg.innerHTML = stats.map(function(s){ return '<div style="background:#111;border-radius:10px;padding:12px;text-align:center;"><div style="font-size:1.4rem;">'+s.i+'</div><div style="font-size:1.25rem;font-weight:900;color:'+s.c+';">'+s.v+'</div><div style="font-size:.63rem;color:#444;font-weight:700;text-transform:uppercase;">'+s.l+'</div></div>'; }).join('');
-  // Users
-  renderAdminUsers();
-  // Chat info
-  var cc=document.getElementById('admin-chat-count'); var ct=document.getElementById('admin-chat-reset-time');
-  if(cc) cc.textContent = 'Сообщений в чате: '+msgs.length;
-  if(ct){ var diff=(parseInt(localStorage.getItem(CHAT_RESET_KEY)||'0')+CHAT_TTL)-Date.now(); ct.textContent='Следующий сброс через '+Math.max(0,Math.floor(diff/3600000))+'ч '+Math.max(0,Math.floor((diff%3600000)/60000))+'мин'; }
+    {i:'☑️',l:'Выполнено',v:tdone,c:'#22c55e'}
+  ].map(function(s){ return '<div style="background:#111;border-radius:10px;padding:12px;text-align:center;"><div style="font-size:1.4rem;">'+s.i+'</div><div style="font-size:1.25rem;font-weight:900;color:'+s.c+';">'+s.v+'</div><div style="font-size:.63rem;color:#444;font-weight:700;text-transform:uppercase;">'+s.l+'</div></div>'; }).join('');
+  // Users — загружаем с сервера
+  var ul = document.getElementById('admin-users-list');
+  if (ul) ul.innerHTML = '<div style="color:#888;font-size:.78rem;padding:4px;">Загрузка...</div>';
+  loadAccounts(function() { renderAdminUsers(); });
   // Login log
-  var ll=document.getElementById('admin-login-log');
-  if(ll){ var log=JSON.parse(localStorage.getItem('crm_login_log')||'[]'); ll.innerHTML=log.slice(0,20).map(function(e){ return '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #1a1a1a;font-size:.78rem;"><span style="color:#ccc;">'+esc(e.name)+' <span style="color:#444;font-family:monospace;">@'+e.login+'</span></span><span style="color:#444;">'+new Date(e.time).toLocaleString('ru-RU')+'</span></div>'; }).join('')||'<div style="color:#333;font-size:.8rem;">Нет записей</div>'; }
+  var ll = document.getElementById('admin-login-log');
+  if (ll) { var log=JSON.parse(localStorage.getItem('crm_login_log')||'[]'); ll.innerHTML=log.slice(0,20).map(function(e){ return '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #1a1a1a;font-size:.78rem;"><span style="color:#ccc;">'+esc(e.name)+' <span style="color:#444;font-family:monospace;">@'+e.login+'</span></span><span style="color:#444;">'+new Date(e.time).toLocaleString('ru-RU')+'</span></div>'; }).join('')||'<div style="color:#333;font-size:.8rem;">Нет записей</div>'; }
 }
 
 
