@@ -41,7 +41,6 @@ async function initDB() {
     CREATE TABLE IF NOT EXISTS chat_messages (
       id         SERIAL PRIMARY KEY,
       type       TEXT NOT NULL DEFAULT 'all',
-      msgtype    TEXT DEFAULT NULL,
       login      TEXT NOT NULL,
       "to"       TEXT,
       name       TEXT,
@@ -51,10 +50,10 @@ async function initDB() {
     )
   `);
 
-  // Добавляем колонку msgtype если её нет (для уже существующих БД)
-  await pool.query(`
-    ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS msgtype TEXT DEFAULT NULL
-  `).catch(() => {});
+  // Добавляем колонки если их нет (для уже существующих БД)
+  await pool.query(`ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS msgtype TEXT DEFAULT NULL`).catch(() => {});
+  await pool.query(`ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS "to" TEXT`).catch(() => {});
+  await pool.query(`ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS ts BIGINT`).catch(() => {});
 
   // Admin по умолчанию
   const { rows } = await pool.query(`SELECT count(*) as cnt FROM accounts`);
