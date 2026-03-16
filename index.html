@@ -1750,18 +1750,54 @@ function loadFromServer(cb) {
     fetch('/api/clients').then(function(r){ return r.text(); }),
     fetch('/api/tasks').then(function(r){ return r.text(); })
   ]).then(function(results) {
-    try { var c = JSON.parse(results[0]); if (Array.isArray(c)) clients = c; } catch(e){}
-    try { var t = JSON.parse(results[1]); if (Array.isArray(t)) tasks   = t; } catch(e){}
+    var changed = false;
+    try {
+      var c = JSON.parse(results[0]);
+      if (Array.isArray(c)) {
+        // Миграция: если сервер пустой а в localStorage есть данные — заливаем
+        if (c.length === 0) {
+          try { var lc = localStorage.getItem('crm26') || localStorage.getItem('crm2026'); if (lc) { c = JSON.parse(lc); if (c.length > 0) { clients = c; saveAll(); changed = true; } } } catch(e){}
+        } else {
+          clients = c; changed = true;
+        }
+      }
+    } catch(e){}
+    try {
+      var t = JSON.parse(results[1]);
+      if (Array.isArray(t)) {
+        if (t.length === 0) {
+          try { var lt = localStorage.getItem('crm26t'); if (lt) { t = JSON.parse(lt); if (t.length > 0) { tasks = t; saveAll(); changed = true; } } } catch(e){}
+        } else {
+          tasks = t; changed = true;
+        }
+      }
+    } catch(e){}
+    if (changed) {
+      updBadges();
+      if (typeof renderCards === 'function') renderCards();
+      if (typeof renderWataCards === 'function') renderWataCards();
+      if (typeof renderTasks === 'function') renderTasks();
+      if (typeof renderDash === 'function') renderDash();
+    }
     if (typeof cb === 'function') cb();
-    // Миграция: если сервер пустой а в localStorage есть данные — заливаем
-    if (clients.length === 0) {
-      try { var lc = localStorage.getItem('crm26') || localStorage.getItem('crm2026'); if (lc) { clients = JSON.parse(lc); saveAll(); } } catch(e){}
-    }
-    if (tasks.length === 0) {
-      try { var lt = localStorage.getItem('crm26t'); if (lt) { tasks = JSON.parse(lt); saveAll(); } } catch(e){}
-    }
   }).catch(function(){ if (typeof cb === 'function') cb(); });
 }
+
+// Автообновление данных каждые 30 секунд
+var _syncInterval = null;
+function startAutoSync() {
+  if (_syncInterval) clearInterval(_syncInterval);
+  _syncInterval = setInterval(function() {
+    if (currentUser) loadFromServer();
+  }, 30000);
+}
+
+// Обновляем при возврате на вкладку (с телефона/другого устройства)
+document.addEventListener('visibilitychange', function() {
+  if (!document.hidden && currentUser) {
+    loadFromServer();
+  }
+});
 
 // ==================== UTILS ====================
 function genId() { return Date.now().toString(36) + Math.random().toString(36).substr(2,5); }
@@ -2946,6 +2982,7 @@ function doLogin() {
     loadFromServer(function() {
       updBadges(); renderDash(); renderChar();
     });
+    startAutoSync();
     chatLoad();
     startDmPolling();
     setTimeout(drawBgChart, 100);
