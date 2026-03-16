@@ -13,7 +13,6 @@ const pool = new Pool({
 
 // ─── Создаём таблицы при старте ──────────────────────────────
 async function initDB() {
-  // Каждый CREATE отдельно — если одна упадёт, видно какая именно
   await pool.query(`
     CREATE TABLE IF NOT EXISTS accounts (
       login      TEXT PRIMARY KEY,
@@ -37,23 +36,35 @@ async function initDB() {
       updated_at TIMESTAMPTZ DEFAULT NOW()
     )
   `);
+
+  // Пересоздаём chat_messages с правильной схемой
+  // Сначала проверяем есть ли колонка ts
+  const check = await pool.query(`
+    SELECT column_name FROM information_schema.columns
+    WHERE table_name='chat_messages' AND column_name='ts'
+  `);
+  if (check.rows.length === 0) {
+    // Колонки ts нет — старая схема, удаляем и создаём заново
+    console.log('⚠️  Пересоздаём chat_messages...');
+    await pool.query(`DROP TABLE IF EXISTS chat_messages`);
+  }
   await pool.query(`
     CREATE TABLE IF NOT EXISTS chat_messages (
       id         SERIAL PRIMARY KEY,
       type       TEXT NOT NULL DEFAULT 'all',
+      msgtype    TEXT DEFAULT NULL,
       login      TEXT NOT NULL,
       "to"       TEXT,
       name       TEXT,
       text       TEXT NOT NULL,
-      ts         BIGINT NOT NULL,
+      ts         BIGINT NOT NULL DEFAULT 0,
       created_at TIMESTAMPTZ DEFAULT NOW()
     )
   `);
-
-  // Добавляем колонки если их нет (для уже существующих БД)
-  await pool.query(`ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS msgtype TEXT DEFAULT NULL`).catch(() => {});
-  await pool.query(`ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS "to" TEXT`).catch(() => {});
-  await pool.query(`ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS ts BIGINT`).catch(() => {});
+  // Добавляем колонки если вдруг нет
+  await pool.query(`ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS msgtype TEXT DEFAULT NULL`).catch(()=>{});
+  await pool.query(`ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS ts BIGINT NOT NULL DEFAULT 0`).catch(()=>{});
+  await pool.query(`ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS "to" TEXT`).catch(()=>{});
 
   // Admin по умолчанию
   const { rows } = await pool.query(`SELECT count(*) as cnt FROM accounts`);
