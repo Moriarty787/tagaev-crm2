@@ -301,12 +301,20 @@ body.sem-theme .bg-circle-3 { background: radial-gradient(circle, #1a56db 0%, tr
 }
 .hc-brand span { color: var(--Y); opacity: .3; }
 
+body.sem-theme .hc-card {
+  border: 1.5px solid rgba(26,86,219,.28);
+  background: rgba(255,255,255,.7);
+  box-shadow: 0 2px 10px rgba(26,86,219,.08);
+}
 body.sem-theme .hc-card:hover {
   border-color: #1a56db;
   box-shadow: 0 12px 32px rgba(26,86,219,.2), 0 0 0 1px #1a56db;
   background: rgba(26,86,219,.08);
 }
 body.sem-theme .hc-icon { color: #1a56db; }
+body.sem-theme .hc-label { color: #0d1b3e; }
+body.sem-theme .hc-sub { color: #4a6fa5; }
+body.sem-theme .hc-brand { color: rgba(26,86,219,.15); }
 
 /* Скрывать карточки когда drawer открыт */
 #home-cards.hidden { opacity: 0; pointer-events: none; transition: opacity .2s; }
