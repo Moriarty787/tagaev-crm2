@@ -21,13 +21,16 @@ async function initDB() {
     )
   `);
 
-  // clients — пересоздаём если updated_at bigint
+  // clients — пересоздаём если нет нужного PRIMARY KEY (id, owner)
   await pool.query(`
     DO $$ BEGIN
-      IF EXISTS (
-        SELECT 1 FROM information_schema.columns
-        WHERE table_name='clients' AND column_name='updated_at' AND data_type='bigint'
-      ) THEN DROP TABLE clients; END IF;
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints tc
+        JOIN information_schema.constraint_column_usage ccu ON tc.constraint_name = ccu.constraint_name
+        WHERE tc.table_name='clients' AND tc.constraint_type='PRIMARY KEY' AND ccu.column_name='owner'
+      ) THEN
+        DROP TABLE IF EXISTS clients;
+      END IF;
     END $$
   `);
   await pool.query(`
@@ -39,16 +42,17 @@ async function initDB() {
       PRIMARY KEY (id, owner)
     )
   `);
-  // Добавляем колонку owner если её нет (для уже существующей таблицы)
-  await pool.query(`ALTER TABLE clients ADD COLUMN IF NOT EXISTS owner TEXT NOT NULL DEFAULT ''`).catch(()=>{});
 
-  // tasks — пересоздаём если updated_at bigint
+  // tasks — пересоздаём если нет нужного PRIMARY KEY (id, owner)
   await pool.query(`
     DO $$ BEGIN
-      IF EXISTS (
-        SELECT 1 FROM information_schema.columns
-        WHERE table_name='tasks' AND column_name='updated_at' AND data_type='bigint'
-      ) THEN DROP TABLE tasks; END IF;
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints tc
+        JOIN information_schema.constraint_column_usage ccu ON tc.constraint_name = ccu.constraint_name
+        WHERE tc.table_name='tasks' AND tc.constraint_type='PRIMARY KEY' AND ccu.column_name='owner'
+      ) THEN
+        DROP TABLE IF EXISTS tasks;
+      END IF;
     END $$
   `);
   await pool.query(`
@@ -60,7 +64,6 @@ async function initDB() {
       PRIMARY KEY (id, owner)
     )
   `);
-  await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS owner TEXT NOT NULL DEFAULT ''`).catch(()=>{});
 
   // chat_messages
   await pool.query(`

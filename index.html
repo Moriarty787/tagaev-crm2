@@ -3133,6 +3133,17 @@ function fmtTs(ts) { var d=new Date(ts); return d.toLocaleTimeString('ru-RU',{ho
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 setInterval(function(){ if(currentUser && document.getElementById('chat-box') && document.getElementById('chat-box').style.display!=='none') chatLoad(); }, 10000);
 
+// Синхронизация клиентов и задач каждые 15 секунд
+setInterval(function(){
+  if (!currentUser) return;
+  loadFromServer(function() {
+    updBadges();
+    // Обновляем видимую вкладку
+    if (typeof renderCards === 'function') renderCards();
+    if (typeof renderTasks === 'function') renderTasks();
+  });
+}, 15000);
+
 function openAdminPanel() {
   if (!currentUser||currentUser.role!=='admin') return;
   document.getElementById('admin-panel').style.display = 'block';
