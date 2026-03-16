@@ -11,7 +11,6 @@ const pool = new Pool({
 });
 
 async function initDB() {
-  // Пересоздаём таблицы с правильной схемой
   await pool.query(`
     CREATE TABLE IF NOT EXISTS accounts (
       login      TEXT PRIMARY KEY,
@@ -22,45 +21,46 @@ async function initDB() {
     )
   `);
 
-  // clients — пересоздаём если updated_at не того типа
+  // clients — пересоздаём если updated_at bigint
   await pool.query(`
     DO $$ BEGIN
       IF EXISTS (
         SELECT 1 FROM information_schema.columns
-        WHERE table_name='clients' AND column_name='updated_at'
-        AND data_type='bigint'
-      ) THEN
-        DROP TABLE clients;
-      END IF;
+        WHERE table_name='clients' AND column_name='updated_at' AND data_type='bigint'
+      ) THEN DROP TABLE clients; END IF;
     END $$
   `);
   await pool.query(`
     CREATE TABLE IF NOT EXISTS clients (
-      id         TEXT PRIMARY KEY,
+      id         TEXT NOT NULL,
+      owner      TEXT NOT NULL DEFAULT '',
       data       JSONB NOT NULL,
-      updated_at TIMESTAMPTZ DEFAULT NOW()
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      PRIMARY KEY (id, owner)
     )
   `);
+  // Добавляем колонку owner если её нет (для уже существующей таблицы)
+  await pool.query(`ALTER TABLE clients ADD COLUMN IF NOT EXISTS owner TEXT NOT NULL DEFAULT ''`).catch(()=>{});
 
-  // tasks — пересоздаём если updated_at не того типа
+  // tasks — пересоздаём если updated_at bigint
   await pool.query(`
     DO $$ BEGIN
       IF EXISTS (
         SELECT 1 FROM information_schema.columns
-        WHERE table_name='tasks' AND column_name='updated_at'
-        AND data_type='bigint'
-      ) THEN
-        DROP TABLE tasks;
-      END IF;
+        WHERE table_name='tasks' AND column_name='updated_at' AND data_type='bigint'
+      ) THEN DROP TABLE tasks; END IF;
     END $$
   `);
   await pool.query(`
     CREATE TABLE IF NOT EXISTS tasks (
-      id         TEXT PRIMARY KEY,
+      id         TEXT NOT NULL,
+      owner      TEXT NOT NULL DEFAULT '',
       data       JSONB NOT NULL,
-      updated_at TIMESTAMPTZ DEFAULT NOW()
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      PRIMARY KEY (id, owner)
     )
   `);
+  await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS owner TEXT NOT NULL DEFAULT ''`).catch(()=>{});
 
   // chat_messages
   await pool.query(`
@@ -95,7 +95,7 @@ app.use(express.json({ limit: '10mb' }));
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 
-// ACCOUNTS
+// ── ACCOUNTS ──────────────────────────────────────────────────
 app.get('/api/accounts', async (req, res) => {
   try {
     const { rows } = await pool.query(`SELECT login, name, pass, role FROM accounts ORDER BY created_at`);
@@ -135,10 +135,14 @@ app.post('/api/accounts/update', async (req, res) => {
   }
 });
 
-// CLIENTS
+// ── CLIENTS (по владельцу) ─────────────────────────────────────
 app.get('/api/clients', async (req, res) => {
+  const { owner } = req.query;
+  if (!owner) return res.status(400).json({ error: 'owner required' });
   try {
-    const { rows } = await pool.query(`SELECT data FROM clients ORDER BY updated_at DESC`);
+    const { rows } = await pool.query(
+      `SELECT data FROM clients WHERE owner=$1 ORDER BY updated_at DESC`, [owner]
+    );
     res.json(rows.map(r => r.data));
   } catch(e) {
     console.error('GET /api/clients', e.message);
@@ -147,18 +151,19 @@ app.get('/api/clients', async (req, res) => {
 });
 
 app.post('/api/clients/sync', async (req, res) => {
-  const { clients } = req.body || {};
+  const { clients, owner } = req.body || {};
   if (!Array.isArray(clients)) return res.status(400).json({ error: 'clients must be array' });
+  if (!owner) return res.status(400).json({ error: 'owner required' });
   const conn = await pool.connect();
   try {
     await conn.query('BEGIN');
-    await conn.query(`DELETE FROM clients`);
+    await conn.query(`DELETE FROM clients WHERE owner=$1`, [owner]);
     for (const c of clients) {
       if (!c || !c.id) continue;
       await conn.query(
-        `INSERT INTO clients (id, data, updated_at) VALUES ($1,$2,NOW())
-         ON CONFLICT (id) DO UPDATE SET data=$2, updated_at=NOW()`,
-        [c.id, JSON.stringify(c)]
+        `INSERT INTO clients (id, owner, data, updated_at) VALUES ($1,$2,$3,NOW())
+         ON CONFLICT (id, owner) DO UPDATE SET data=$3, updated_at=NOW()`,
+        [c.id, owner, JSON.stringify(c)]
       );
     }
     await conn.query('COMMIT');
@@ -173,18 +178,23 @@ app.post('/api/clients/sync', async (req, res) => {
 });
 
 app.delete('/api/clients/:id', async (req, res) => {
+  const { owner } = req.query;
   try {
-    await pool.query(`DELETE FROM clients WHERE id=$1`, [req.params.id]);
+    await pool.query(`DELETE FROM clients WHERE id=$1 AND owner=$2`, [req.params.id, owner||'']);
     res.json({ ok: true });
   } catch(e) {
     res.status(500).json({ error: e.message });
   }
 });
 
-// TASKS
+// ── TASKS (по владельцу) ───────────────────────────────────────
 app.get('/api/tasks', async (req, res) => {
+  const { owner } = req.query;
+  if (!owner) return res.status(400).json({ error: 'owner required' });
   try {
-    const { rows } = await pool.query(`SELECT data FROM tasks ORDER BY updated_at DESC`);
+    const { rows } = await pool.query(
+      `SELECT data FROM tasks WHERE owner=$1 ORDER BY updated_at DESC`, [owner]
+    );
     res.json(rows.map(r => r.data));
   } catch(e) {
     console.error('GET /api/tasks', e.message);
@@ -193,18 +203,19 @@ app.get('/api/tasks', async (req, res) => {
 });
 
 app.post('/api/tasks/sync', async (req, res) => {
-  const { tasks } = req.body || {};
+  const { tasks, owner } = req.body || {};
   if (!Array.isArray(tasks)) return res.status(400).json({ error: 'tasks must be array' });
+  if (!owner) return res.status(400).json({ error: 'owner required' });
   const conn = await pool.connect();
   try {
     await conn.query('BEGIN');
-    await conn.query(`DELETE FROM tasks`);
+    await conn.query(`DELETE FROM tasks WHERE owner=$1`, [owner]);
     for (const t of tasks) {
       if (!t || !t.id) continue;
       await conn.query(
-        `INSERT INTO tasks (id, data, updated_at) VALUES ($1,$2,NOW())
-         ON CONFLICT (id) DO UPDATE SET data=$2, updated_at=NOW()`,
-        [t.id, JSON.stringify(t)]
+        `INSERT INTO tasks (id, owner, data, updated_at) VALUES ($1,$2,$3,NOW())
+         ON CONFLICT (id, owner) DO UPDATE SET data=$3, updated_at=NOW()`,
+        [t.id, owner, JSON.stringify(t)]
       );
     }
     await conn.query('COMMIT');
@@ -218,7 +229,7 @@ app.post('/api/tasks/sync', async (req, res) => {
   }
 });
 
-// CHAT
+// ── CHAT ───────────────────────────────────────────────────────
 app.get('/api/chat/unread', async (req, res) => {
   const { login, since } = req.query;
   if (!login) return res.status(400).json({ error: 'login required' });

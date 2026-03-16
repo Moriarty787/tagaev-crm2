@@ -1735,8 +1735,9 @@ var _saveTimer = null;
 function saveAll() {
   clearTimeout(_saveTimer);
   _saveTimer = setTimeout(function() {
-    fetch('/api/clients/sync', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({clients:clients}) }).catch(function(){});
-    fetch('/api/tasks/sync',   { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({tasks:tasks})     }).catch(function(){});
+    var _own = currentUser ? currentUser.login : '';
+    fetch('/api/clients/sync', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({clients:clients, owner:_own}) }).catch(function(){});
+    fetch('/api/tasks/sync',   { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({tasks:tasks,   owner:_own}) }).catch(function(){});
   }, 800);
   try { localStorage.setItem('crm26p', JSON.stringify(pdfStore)); } catch(e) {}
   if (typeof updBgChart === 'function') updBgChart();
@@ -1747,8 +1748,8 @@ function loadAll() {
 }
 function loadFromServer(cb) {
   Promise.all([
-    fetch('/api/clients').then(function(r){ return r.text(); }),
-    fetch('/api/tasks').then(function(r){ return r.text(); })
+    fetch('/api/clients?owner=' + encodeURIComponent(currentUser ? currentUser.login : '')).then(function(r){ return r.text(); }),
+    fetch('/api/tasks?owner='   + encodeURIComponent(currentUser ? currentUser.login : '')).then(function(r){ return r.text(); })
   ]).then(function(results) {
     var changed = false;
     try {
