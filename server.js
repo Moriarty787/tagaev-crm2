@@ -123,6 +123,21 @@ app.post('/api/accounts/register', async (req, res) => {
   }
 });
 
+app.post('/api/accounts/delete', async (req, res) => {
+  const { login } = req.body || {};
+  if (!login) return res.status(400).json({ error: 'login required' });
+  try {
+    const { rows } = await pool.query(`SELECT role FROM accounts WHERE login=$1`, [login]);
+    if (!rows.length) return res.status(404).json({ error: 'Пользователь не найден' });
+    if (rows[0].role === 'admin') return res.status(403).json({ error: 'Нельзя удалить администратора' });
+    await pool.query(`DELETE FROM accounts WHERE login=$1`, [login]);
+    res.json({ ok: true });
+  } catch(e) {
+    console.error('DELETE /api/accounts/delete', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.post('/api/accounts/update', async (req, res) => {
   const { login, name, pass } = req.body || {};
   if (!login || !name) return res.status(400).json({ error: 'Нет логина или имени' });
