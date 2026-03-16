@@ -164,6 +164,12 @@ body.sem-theme .tb-kv-sold  { color: #F5C400; }
 body.sem-theme .tb-kl       { color: rgba(255,255,255,.45); }
 body.sem-theme .tb-kpi-item:hover { background: rgba(255,255,255,.1); }
 body.sem-theme .topbar { background: linear-gradient(135deg, #1a3a8f 0%, #1a56db 100%) !important; }
+body.sem-theme .card     { border: 1.5px solid rgba(30,80,180,.22) !important; box-shadow: 0 1px 6px rgba(30,80,180,.08); }
+body.sem-theme .kpi      { border: 1.5px solid rgba(30,80,180,.22) !important; box-shadow: 0 1px 6px rgba(30,80,180,.08); }
+body.sem-theme .panel    { border: 1.5px solid rgba(30,80,180,.22) !important; }
+body.sem-theme .chartbox { border: 1.5px solid rgba(30,80,180,.22) !important; }
+body.sem-theme .task-item{ border: 1.5px solid rgba(30,80,180,.22) !important; }
+body.sem-theme .panel-h  { border-bottom: 1.5px solid rgba(30,80,180,.22) !important; }
 
 /* ============================================================
    ФОНОВЫЙ ПАТТЕРН
@@ -415,7 +421,7 @@ body.sem-theme .hc-icon { color: #1a56db; }
 
 
 
-body.sem-theme{--Y:#F5C400;--BK:#f0f4fa;--D1:#ffffff;--D2:#e8eef8;--D3:#d4dff0;--BD:rgba(30,80,180,.1);--TX:#0d1b3e;--MT:#4a6fa5;--DM:#8aaad8;--GR:#16a34a;--RD:#ef4444;--OR:#f97316;--ACCENT:#1a56db;--ACCENT2:#1344b8;}
+body.sem-theme{--Y:#F5C400;--BK:#f0f4fa;--D1:#ffffff;--D2:#e8eef8;--D3:#d4dff0;--BD:rgba(30,80,180,.18);--TX:#0d1b3e;--MT:#4a6fa5;--DM:#8aaad8;--GR:#16a34a;--RD:#ef4444;--OR:#f97316;--ACCENT:#1a56db;--ACCENT2:#1344b8;}
 /* Theme toggle button */
 .theme-toggle{display:flex;align-items:center;gap:4px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:20px;padding:3px;}
 .theme-toggle-btn{padding:4px 12px;border-radius:16px;font-size:.7rem;font-weight:800;border:none;cursor:pointer;font-family:inherit;transition:all .2s;background:transparent;color:rgba(255,255,255,.6);}
@@ -966,7 +972,19 @@ body.sem-theme .gp-toggle{background:#d4dff0;}
       <div style="font-size:.67rem;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:#444;margin-bottom:10px;">📊 Статистика</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:22px;" id="admin-stats-grid"></div>
       <div style="font-size:.67rem;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:#444;margin-bottom:10px;">👥 Пользователи</div>
-      <div id="admin-users-list" style="background:#111;border-radius:10px;padding:12px;margin-bottom:22px;"></div>
+      <div id="admin-users-list" style="background:#111;border-radius:10px;padding:12px;margin-bottom:10px;"></div>
+      <div style="background:#111;border-radius:10px;padding:14px;margin-bottom:22px;">
+        <div style="font-size:.72rem;font-weight:700;color:#FFCD11;margin-bottom:10px;">➕ Добавить пользователя</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+          <input id="admin-new-name"  type="text"     placeholder="Имя" maxlength="40" style="background:#0d0d0d;border:1px solid #2a2a2a;border-radius:7px;padding:8px 11px;color:#fff;font-size:.8rem;outline:none;width:100%;box-sizing:border-box;">
+          <input id="admin-new-login" type="text"     placeholder="v371xx" maxlength="8" style="background:#0d0d0d;border:1px solid #2a2a2a;border-radius:7px;padding:8px 11px;color:#fff;font-size:.8rem;font-family:monospace;outline:none;width:100%;box-sizing:border-box;" spellcheck="false">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr auto;gap:8px;">
+          <input id="admin-new-pass" type="password" placeholder="Пароль (4-6 симв.)" maxlength="6" style="background:#0d0d0d;border:1px solid #2a2a2a;border-radius:7px;padding:8px 11px;color:#fff;font-size:.8rem;outline:none;width:100%;box-sizing:border-box;">
+          <button id="admin-add-user-btn" style="background:#FFCD11;border:none;border-radius:7px;padding:8px 16px;color:#111;font-size:.78rem;font-weight:800;cursor:pointer;white-space:nowrap;">Добавить</button>
+        </div>
+        <div id="admin-add-user-err" style="display:none;color:#ef4444;font-size:.72rem;margin-top:6px;"></div>
+      </div>
       <div style="font-size:.67rem;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:#444;margin-bottom:10px;">💬 Управление чатом</div>
       <div style="background:#111;border-radius:10px;padding:14px;margin-bottom:22px;">
         <div id="admin-chat-count" style="font-size:.82rem;color:#bbb;margin-bottom:4px;"></div>
@@ -3163,8 +3181,7 @@ function openAdminPanel() {
   var sg = document.getElementById('admin-stats-grid');
   if (sg) sg.innerHTML = stats.map(function(s){ return '<div style="background:#111;border-radius:10px;padding:12px;text-align:center;"><div style="font-size:1.4rem;">'+s.i+'</div><div style="font-size:1.25rem;font-weight:900;color:'+s.c+';">'+s.v+'</div><div style="font-size:.63rem;color:#444;font-weight:700;text-transform:uppercase;">'+s.l+'</div></div>'; }).join('');
   // Users
-  var ul = document.getElementById('admin-users-list');
-  if (ul) ul.innerHTML = Object.keys(ACCOUNTS).map(function(lg){ var a=ACCOUNTS[lg]; var isMe=currentUser.login===lg; return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #1a1a1a;"><div><div style="font-size:.83rem;color:#ddd;font-weight:700;">'+esc(a.name)+(isMe?' <span style="font-size:.62rem;background:#22c55e;color:#fff;border-radius:4px;padding:1px 5px;">вы</span>':'')+'</div><div style="font-size:.68rem;color:#444;margin-top:2px;font-family:monospace;">'+lg+' &nbsp;·&nbsp; '+a.pass+'</div></div><span style="background:'+(a.role==='admin'?'rgba(255,205,17,.15)':'rgba(96,165,250,.12)')+';color:'+(a.role==='admin'?'#FFCD11':'#60a5fa')+';border-radius:6px;padding:3px 8px;font-size:.65rem;font-weight:800;">'+(a.role==='admin'?'👑 ADMIN':'👤 USER')+'</span></div>'; }).join('');
+  renderAdminUsers();
   // Chat info
   var cc=document.getElementById('admin-chat-count'); var ct=document.getElementById('admin-chat-reset-time');
   if(cc) cc.textContent = 'Сообщений в чате: '+msgs.length;
@@ -3174,6 +3191,101 @@ function openAdminPanel() {
   if(ll){ var log=JSON.parse(localStorage.getItem('crm_login_log')||'[]'); ll.innerHTML=log.slice(0,20).map(function(e){ return '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #1a1a1a;font-size:.78rem;"><span style="color:#ccc;">'+esc(e.name)+' <span style="color:#444;font-family:monospace;">@'+e.login+'</span></span><span style="color:#444;">'+new Date(e.time).toLocaleString('ru-RU')+'</span></div>'; }).join('')||'<div style="color:#333;font-size:.8rem;">Нет записей</div>'; }
 }
 
+
+// ==================== ADMIN USERS ====================
+function renderAdminUsers() {
+  var ul = document.getElementById('admin-users-list');
+  if (!ul) return;
+  var logins = Object.keys(ACCOUNTS);
+  ul.innerHTML = '';
+  if (!logins.length) {
+    ul.innerHTML = '<div style="color:#555;font-size:.78rem;">Нет пользователей</div>';
+    return;
+  }
+  logins.forEach(function(lg) {
+    var a = ACCOUNTS[lg];
+    var isMe = currentUser && currentUser.login === lg;
+    var isAdmin = a.role === 'admin';
+    var row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #1a1a1a;';
+    var left = document.createElement('div');
+    var nameDiv = document.createElement('div');
+    nameDiv.style.cssText = 'font-size:.83rem;color:#ddd;font-weight:700;';
+    nameDiv.textContent = a.name;
+    if (isMe) {
+      var badge = document.createElement('span');
+      badge.style.cssText = 'font-size:.62rem;background:#22c55e;color:#fff;border-radius:4px;padding:1px 5px;margin-left:4px;';
+      badge.textContent = 'вы';
+      nameDiv.appendChild(badge);
+    }
+    var loginDiv = document.createElement('div');
+    loginDiv.style.cssText = 'font-size:.68rem;color:#444;margin-top:2px;font-family:monospace;';
+    loginDiv.textContent = lg + ' · ' + a.pass;
+    left.appendChild(nameDiv);
+    left.appendChild(loginDiv);
+    var right = document.createElement('div');
+    right.style.cssText = 'display:flex;align-items:center;gap:4px;';
+    var roleBadge = document.createElement('span');
+    roleBadge.style.cssText = 'background:' + (isAdmin?'rgba(255,205,17,.15)':'rgba(96,165,250,.12)') + ';color:' + (isAdmin?'#FFCD11':'#60a5fa') + ';border-radius:6px;padding:3px 8px;font-size:.65rem;font-weight:800;';
+    roleBadge.textContent = isAdmin ? '👑 ADMIN' : '👤 USER';
+    right.appendChild(roleBadge);
+    if (!isMe && !isAdmin && currentUser && currentUser.role === 'admin') {
+      var delBtn = document.createElement('button');
+      delBtn.style.cssText = 'background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);border-radius:6px;padding:3px 9px;color:#ef4444;font-size:.65rem;font-weight:700;cursor:pointer;';
+      delBtn.textContent = 'Удалить';
+      delBtn.setAttribute('data-login', lg);
+      delBtn.addEventListener('click', function() { adminDeleteUser(this.getAttribute('data-login')); });
+      right.appendChild(delBtn);
+    }
+    row.appendChild(left);
+    row.appendChild(right);
+    ul.appendChild(row);
+  });
+}
+
+function adminDeleteUser(login) {
+  if (currentUser.role !== 'admin') return;
+  if (!confirm('Удалить пользователя ' + login + '?')) return;
+  fetch('/api/accounts/delete', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ login: login })
+  }).then(function(r){ return r.text(); }).then(function(txt) {
+    try { var d = JSON.parse(txt); if (!d.ok) return toast('❌ ' + (d.error||'Ошибка')); } catch(e){}
+    delete ACCOUNTS[login];
+    renderAdminUsers();
+    toast('🗑 Пользователь ' + login + ' удалён');
+  }).catch(function(){ toast('❌ Ошибка сети'); });
+}
+
+function adminAddUser() {
+  if (currentUser.role !== 'admin') return;
+  var name  = (document.getElementById('admin-new-name').value  || '').trim();
+  var login = (document.getElementById('admin-new-login').value || '').trim().toLowerCase();
+  var pass  =  document.getElementById('admin-new-pass').value  || '';
+  var errEl = document.getElementById('admin-add-user-err');
+  function showErr(msg){ errEl.textContent=msg; errEl.style.display='block'; }
+  errEl.style.display = 'none';
+  if (!name)  return showErr('Введите имя');
+  if (!/^v371[a-z]{2}$/.test(login)) return showErr('Логин: v371 + 2 строчные латинские буквы (пример: v371ab)');
+  if (ACCOUNTS[login]) return showErr('Этот логин уже занят');
+  if (pass.length < 4 || pass.length > 6) return showErr('Пароль: 4-6 символов');
+  if (!/[A-Z]/.test(pass)) return showErr('Пароль должен содержать заглавную букву');
+  if (!/[a-z]/.test(pass)) return showErr('Пароль должен содержать строчную букву');
+  fetch('/api/accounts/register', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ login: login, name: name, pass: pass })
+  }).then(function(r){ return r.text(); }).then(function(txt) {
+    try { var d = JSON.parse(txt); if (d.error) return showErr(d.error); } catch(e){}
+    ACCOUNTS[login] = { name: name, pass: pass, role: 'user' };
+    document.getElementById('admin-new-name').value  = '';
+    document.getElementById('admin-new-login').value = '';
+    document.getElementById('admin-new-pass').value  = '';
+    renderAdminUsers();
+    toast('✅ Пользователь ' + login + ' добавлен');
+  }).catch(function(){ showErr('Ошибка сети'); });
+}
 
 // ==================== PROFILE ====================
 function openProfile() {
@@ -3712,6 +3824,7 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('show-register-btn').addEventListener('click', openRegister);
   document.getElementById('reg-back-btn').addEventListener('click', closeRegister);
   document.getElementById('reg-submit-btn').addEventListener('click', doRegister);
+  document.getElementById('admin-add-user-btn').addEventListener('click', adminAddUser);
   document.getElementById('reg-pass2').addEventListener('keydown', function(e){ if(e.key==='Enter') doRegister(); });
 
   // --- ADMIN ANNOUNCE ---
