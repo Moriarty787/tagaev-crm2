@@ -2964,8 +2964,11 @@ function chatGetDMs(u1, u2, cb) {
 }
 function chatSaveMsgs(msgs) {} // не используется — данные на сервере
 function chatSaveDMs(dms)  {} // не используется — данные на сервере
-function chatPostMsg(msg) {
-  fetch('/api/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(msg) }).catch(function(){});
+function chatPostMsg(msg, cb) {
+  fetch('/api/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(msg) })
+    .then(function(r){ return r.text(); })
+    .then(function(){ if (typeof cb === 'function') cb(); })
+    .catch(function(){ if (typeof cb === 'function') cb(); });
 }
 
 function chatLoad() {
@@ -3035,8 +3038,9 @@ function chatSend() {
     msg = { type:'all', login:currentUser.login, name:currentUser.name, text:txt, ts:now };
   }
   if (inp) inp.value = '';
-  chatPostMsg(msg);
-  setTimeout(chatLoad, 300);
+  chatPostMsg(msg, function() {
+    chatLoad();
+  });
 }
 
 function chatUpdUnread() {
@@ -3665,9 +3669,10 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('admin-send-announce').addEventListener('click', function(){
     var txt = (document.getElementById('admin-announce-text').value || '').trim();
     if(!txt) return;
-    chatPostMsg({type:'all', msgtype:'system', login:'admin', name:'Администратор', text:'📢 '+txt, ts:Date.now()});
+    chatPostMsg({type:'all', msgtype:'system', login:'admin', name:'Администратор', text:'📢 '+txt, ts:Date.now()}, function() {
+      chatLoad(); toast('📢 Объявление отправлено');
+    });
     document.getElementById('admin-announce-text').value = '';
-    setTimeout(function(){ chatLoad(); toast('📢 Объявление отправлено'); }, 300);
   });
 
 }); // конец второго DOMContentLoaded
