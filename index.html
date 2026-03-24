@@ -14,6 +14,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU&load=package.full" type="text/javascript"></script>
 <style>
 /* ===== CAT THEME (default) ===== */
 :root{--Y:#FFCD11;--BK:#141414;--D1:#1C1C1C;--D2:#242424;--D3:#2E2E2E;--BD:rgba(255,255,255,.07);--TX:#F0F0F0;--MT:#888;--DM:#444;--GR:#22c55e;--RD:#ef4444;--OR:#f97316;--ACCENT:#FFCD11;--ACCENT2:#e6b800;--THEME-NAME:"CAT";}
@@ -899,6 +900,34 @@ body.sem-theme .gp-toggle{background:#d4dff0;}
 .char-pd-dot{width:9px;height:9px;border-radius:50%;background:var(--D3);border:2px solid var(--DM);}
 .char-pd.done .char-pd-dot{background:var(--Y);border-color:var(--Y);}
 .char-pd.cur .char-pd-dot{box-shadow:0 0 8px rgba(255,205,17,.7);}
+
+/* ==================== MAP STYLES ==================== */
+#map-container{border:1px solid var(--BD);border-radius:10px;overflow:hidden;position:relative;}
+.map-marker-card{background:var(--D1);border:1px solid var(--BD);border-radius:8px;padding:9px 12px;display:flex;align-items:center;gap:10px;transition:border-color .18s;}
+.map-marker-card:hover{border-color:var(--Y);}
+.map-marker-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0;}
+.map-marker-icon.client{background:rgba(255,205,17,.18);color:var(--Y);}
+.map-marker-icon.visit{background:rgba(34,197,94,.18);color:#22c55e;}
+.map-marker-icon.note{background:rgba(249,115,22,.18);color:#f97316;}
+.map-marker-info{flex:1;min-width:0;}
+.map-marker-title{font-size:.8rem;font-weight:700;color:var(--TX);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.map-marker-sub{font-size:.68rem;color:var(--MT);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.map-marker-del{background:none;border:none;cursor:pointer;color:var(--DM);font-size:.8rem;padding:4px;border-radius:4px;transition:all .15s;flex-shrink:0;}
+.map-marker-del:hover{background:rgba(239,68,68,.15);color:#ef4444;}
+/* Yandex map dark override */
+#ymap .ymaps-2-1-79-map{background:#141414 !important;}
+/* Map add-mode cursor hint */
+#map-container.map-adding{cursor:crosshair;}
+/* Map popup */
+.map-popup{background:var(--D1);border:1px solid var(--BD);border-radius:10px;padding:12px 14px;min-width:200px;box-shadow:0 8px 30px rgba(0,0,0,.6);font-family:system-ui,-apple-system,'Segoe UI',sans-serif;}
+.map-popup h4{font-size:.82rem;font-weight:800;color:var(--Y);margin:0 0 4px 0;}
+.map-popup p{font-size:.74rem;color:var(--MT);margin:0 0 3px 0;}
+.map-popup-close{background:none;border:none;position:absolute;top:6px;right:8px;cursor:pointer;color:var(--MT);font-size:.9rem;}
+/* Add marker dialog */
+#map-dialog{display:none;position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);align-items:center;justify-content:center;}
+#map-dialog.show{display:flex;}
+#map-dialog-inner{background:var(--D1);border:1px solid var(--BD);border-radius:14px;padding:20px;width:min(92vw,360px);box-shadow:0 16px 50px rgba(0,0,0,.7);}
+#map-dialog-inner h3{font-size:.9rem;font-weight:800;color:var(--Y);margin:0 0 14px 0;display:flex;align-items:center;gap:7px;}
 </style>
 </head>
 <body>
@@ -1128,6 +1157,11 @@ body.sem-theme .gp-toggle{background:#d4dff0;}
       <div class="hc-label">Персонаж</div>
       <div class="hc-sub">Прогресс</div>
     </div>
+    <div class="hc-card" onclick="openDrawer('map')">
+      <div class="hc-icon"><i class="fas fa-map-marked-alt"></i></div>
+      <div class="hc-label">Карта</div>
+      <div class="hc-sub">Клиенты на карте</div>
+    </div>
   </div>
   <div class="hc-brand">my<span>.crm</span></div>
 </div>
@@ -1143,6 +1177,7 @@ body.sem-theme .gp-toggle{background:#d4dff0;}
     <button class="dock-btn" onclick="openDrawer('calc')" style="min-width:0;padding:5px 10px;border-radius:8px;flex-direction:row;gap:6px;font-size:.72rem;"><i class="fas fa-calculator"></i><span style="display:block;font-size:.65rem;">Калькулятор</span></button>
     <button class="dock-btn" onclick="openDrawer('sold')" style="min-width:0;padding:5px 10px;border-radius:8px;flex-direction:row;gap:6px;font-size:.72rem;"><i class="fas fa-check-double"></i><span style="display:block;font-size:.65rem;">Продано</span></button>
     <button class="dock-btn" onclick="openDrawer('char')" style="min-width:0;padding:5px 10px;border-radius:8px;flex-direction:row;gap:6px;font-size:.72rem;"><i class="fas fa-user-astronaut"></i><span style="display:block;font-size:.65rem;">Персонаж</span></button>
+    <button class="dock-btn" onclick="openDrawer('map')" style="min-width:0;padding:5px 10px;border-radius:8px;flex-direction:row;gap:6px;font-size:.72rem;"><i class="fas fa-map-marked-alt"></i><span style="display:block;font-size:.65rem;">Карта</span></button>
   </div>
   <div style="display:flex;align-items:center;gap:6px;margin-left:auto;">
     <div class="theme-toggle" id="themeToggle">
@@ -1734,6 +1769,39 @@ body.sem-theme .gp-toggle{background:#d4dff0;}
 </div>
 </div>
 
+<!-- MAP VIEW -->
+<div id="view-map">
+<div class="wrap">
+  <div class="ptitle"><i class="fas fa-map-marked-alt"></i> Карта клиентов и визитов</div>
+
+  <!-- Map controls -->
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;">
+    <button class="btn y" id="map-add-client-btn" style="font-size:.75rem;padding:6px 12px;"><i class="fas fa-user-plus"></i> Метка клиента</button>
+    <button class="btn dk" id="map-add-visit-btn" style="font-size:.75rem;padding:6px 12px;"><i class="fas fa-map-pin"></i> Визит</button>
+    <button class="btn dk" id="map-add-note-btn" style="font-size:.75rem;padding:6px 12px;"><i class="fas fa-sticky-note"></i> Заметка</button>
+    <button class="btn dk" id="map-my-location-btn" style="font-size:.75rem;padding:6px 12px;"><i class="fas fa-crosshairs"></i> Моё место</button>
+    <span style="font-size:.7rem;color:var(--MT);margin-left:4px;">Нажмите кнопку, затем кликните на карту</span>
+  </div>
+
+  <!-- Map container -->
+  <div id="map-container" style="width:100%;height:500px;border-radius:10px;border:1px solid var(--BD);overflow:hidden;position:relative;background:#1a1a2e;">
+    <div id="ymap" style="width:100%;height:100%;"></div>
+    <div id="map-loading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(20,20,20,.8);color:var(--Y);font-size:.85rem;flex-direction:column;gap:10px;z-index:10;">
+      <i class="fas fa-map-marked-alt" style="font-size:2rem;"></i>
+      <span>Загрузка карты...</span>
+    </div>
+  </div>
+
+  <!-- Markers list -->
+  <div style="margin-top:14px;">
+    <div class="ptitle" style="font-size:.82rem;margin-bottom:8px;"><i class="fas fa-list"></i> Метки на карте</div>
+    <div id="map-markers-list" style="display:flex;flex-direction:column;gap:6px;max-height:300px;overflow-y:auto;">
+      <div style="color:var(--MT);font-size:.78rem;text-align:center;padding:20px;">Меток пока нет. Нажмите кнопку выше и кликните на карту.</div>
+    </div>
+  </div>
+</div>
+</div>
+
 </div><!-- /views-store -->
 
 </div><!-- /main -->
@@ -1888,7 +1956,8 @@ var DRAWER_CONFIG = {
   'tasks':   { title:'<i class="fas fa-tasks"></i> Задачи',           actions: '' },
   'calc':    { title:'<i class="fas fa-calculator"></i> Калькулятор', actions: '' },
   'sold':    { title:'<i class="fas fa-check-double"></i> Продано',   actions: '' },
-  'char':    { title:'<i class="fas fa-user-astronaut"></i> Персонаж',actions: '' }
+  'char':    { title:'<i class="fas fa-user-astronaut"></i> Персонаж',actions: '' },
+  'map':     { title:'<i class="fas fa-map-marked-alt"></i> Карта',   actions: '' }
 };
 
 function openDrawer(n) {
@@ -1940,6 +2009,7 @@ function openDrawer(n) {
     if (n === 'calc') { reattachCalcHandlers(); renderCalc(); }
     if (n === 'sold') renderSoldCards();
     if (n === 'char') { initCharCarousel(); renderChar(); }
+    if (n === 'map') { setTimeout(initMap, 100); }
     reattachPanels();
   }, 50);
 }
@@ -3842,7 +3912,464 @@ document.addEventListener('DOMContentLoaded', function() {
 
 }); // конец второго DOMContentLoaded
 
+// ==================== MAP MODULE ====================
+var _mapInstance = null;
+var _mapMode = null; // 'client' | 'visit' | 'note' | null
+var _mapPendingCoords = null;
+var _mapMarkers = [];
+var _mapPlacemarks = {};
+var _mapReady = false;
+var _ymapsReady = false;
+
+// Storage helpers
+function mapSave() {
+  try { localStorage.setItem('crm_map_markers', JSON.stringify(_mapMarkers)); } catch(e) {}
+}
+function mapLoad() {
+  try {
+    var s = localStorage.getItem('crm_map_markers');
+    if (s) _mapMarkers = JSON.parse(s);
+  } catch(e) { _mapMarkers = []; }
+}
+
+// Init map (called when drawer opens)
+function initMap() {
+  mapLoad();
+  var container = document.getElementById('map-dialog');
+  if (!container) return;
+
+  // Check if Yandex Maps API is loaded
+  if (typeof ymaps === 'undefined') {
+    // Try to load it dynamically
+    var s = document.createElement('script');
+    s.src = 'https://api-maps.yandex.ru/2.1/?lang=ru_RU&load=package.full';
+    s.onload = function() {
+      ymaps.ready(function() {
+        _ymapsReady = true;
+        _buildMap();
+      });
+    };
+    s.onerror = function() { _fallbackToLeaflet(); };
+    document.head.appendChild(s);
+  } else if (!_ymapsReady) {
+    ymaps.ready(function() {
+      _ymapsReady = true;
+      _buildMap();
+    });
+  } else {
+    _buildMap();
+  }
+}
+
+function _fallbackToLeaflet() {
+  // Load OpenStreetMap via Leaflet as fallback
+  if (typeof L === 'undefined') {
+    var lCss = document.createElement('link');
+    lCss.rel = 'stylesheet';
+    lCss.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
+    document.head.appendChild(lCss);
+
+    var lJs = document.createElement('script');
+    lJs.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+    lJs.onload = function() { _buildLeaflet(); };
+    document.head.appendChild(lJs);
+  } else {
+    _buildLeaflet();
+  }
+}
+
+function _buildLeaflet() {
+  var mapEl = document.getElementById('ymap');
+  var loadEl = document.getElementById('map-loading');
+  if (!mapEl) return;
+
+  if (_mapInstance && _mapInstance._leaflet_id) {
+    if (loadEl) loadEl.style.display = 'none';
+    _refreshMapMarkers();
+    _attachMapButtons();
+    return;
+  }
+
+  // Default center: Bishkek, Kyrgyzstan
+  var map = L.map('ymap', {
+    center: [42.87, 74.59],
+    zoom: 11,
+    zoomControl: true
+  });
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap'
+  }).addTo(map);
+
+  // Dark overlay for OSM to match the CRM theme
+  document.getElementById('ymap').style.filter = 'invert(90%) hue-rotate(180deg) brightness(0.9)';
+
+  _mapInstance = map;
+  _mapReady = true;
+  if (loadEl) loadEl.style.display = 'none';
+
+  map.on('click', function(e) {
+    if (!_mapMode) return;
+    _mapPendingCoords = [e.latlng.lat, e.latlng.lng];
+    _openMapDialog(_mapMode);
+    document.getElementById('map-container').classList.remove('map-adding');
+    _mapMode = null;
+  });
+
+  _refreshMapMarkers();
+  _attachMapButtons();
+}
+
+function _buildMap() {
+  var mapEl = document.getElementById('ymap');
+  var loadEl = document.getElementById('map-loading');
+  if (!mapEl) return;
+
+  // If already built, just refresh
+  if (_mapInstance && _mapReady) {
+    if (loadEl) loadEl.style.display = 'none';
+    _refreshMapMarkers();
+    _attachMapButtons();
+    return;
+  }
+
+  try {
+    var map = new ymaps.Map('ymap', {
+      center: [42.87, 74.59], // Bishkek
+      zoom: 11,
+      controls: ['zoomControl', 'geolocationControl']
+    }, {
+      suppressMapOpenBlock: true
+    });
+
+    // Dark tiles
+    map.setType('yandex#map');
+
+    _mapInstance = map;
+    _mapReady = true;
+    if (loadEl) loadEl.style.display = 'none';
+
+    map.events.add('click', function(e) {
+      if (!_mapMode) return;
+      _mapPendingCoords = e.get('coords');
+      _openMapDialog(_mapMode);
+      document.getElementById('map-container').classList.remove('map-adding');
+      _mapMode = null;
+    });
+
+    _refreshMapMarkers();
+    _attachMapButtons();
+  } catch(err) {
+    console.warn('Yandex Maps failed, falling back to Leaflet:', err);
+    _fallbackToLeaflet();
+  }
+}
+
+function _attachMapButtons() {
+  // Prevent duplicate listeners by cloning elements
+  function rebind(id, fn) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    var newEl = el.cloneNode(true);
+    el.parentNode.replaceChild(newEl, el);
+    newEl.addEventListener('click', fn);
+  }
+
+  rebind('map-add-client-btn', function() { _startAddMode('client'); });
+  rebind('map-add-visit-btn',  function() { _startAddMode('visit'); });
+  rebind('map-add-note-btn',   function() { _startAddMode('note'); });
+  rebind('map-my-location-btn', function() { _goToMyLocation(); });
+  rebind('map-dialog-cancel',  function() { _closeMapDialog(); });
+  rebind('map-dialog-save',    function() { _saveMapMarker(); });
+}
+
+function _startAddMode(type) {
+  _mapMode = type;
+  var container = document.getElementById('map-container');
+  if (container) container.classList.add('map-adding');
+  var labels = { client: 'Кликните на карту — место клиента', visit: 'Кликните на карту — место визита', note: 'Кликните на карту — место заметки' };
+  toast(labels[type] || 'Кликните на карту');
+}
+
+function _openMapDialog(type) {
+  var dlg = document.getElementById('map-dialog');
+  var title = document.getElementById('map-dialog-title');
+  var nameInput = document.getElementById('map-dialog-name');
+  var noteInput = document.getElementById('map-dialog-note');
+  var clientWrap = document.getElementById('map-dialog-client-wrap');
+  var clientSel = document.getElementById('map-dialog-client');
+
+  if (!dlg) return;
+
+  var icons = { client: 'fas fa-user', visit: 'fas fa-route', note: 'fas fa-sticky-note' };
+  var labels = { client: 'Метка клиента', visit: 'Визит', note: 'Заметка' };
+  if (title) title.innerHTML = '<i class="' + (icons[type]||'fas fa-map-pin') + '"></i> ' + (labels[type]||'Добавить метку');
+
+  nameInput.value = '';
+  noteInput.value = '';
+
+  // Populate client dropdown for 'client' and 'visit' types
+  if (type === 'client' || type === 'visit') {
+    clientWrap.style.display = 'block';
+    clientSel.innerHTML = '<option value="">— Без привязки —</option>';
+    if (typeof clients !== 'undefined') {
+      clients.filter(function(c){ return !c.sold && parseInt(c.prob||0) >= 0; }).forEach(function(c) {
+        var opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = (c.name||'Без имени') + (c.company ? ' / '+c.company : '');
+        clientSel.appendChild(opt);
+      });
+    }
+    // If type is client and a client is selected, pre-fill name
+    if (type === 'client') {
+      clientSel.addEventListener('change', function() {
+        if (clientSel.value && typeof clients !== 'undefined') {
+          var cl = clients.find(function(c){ return c.id === clientSel.value; });
+          if (cl && !nameInput.value) nameInput.value = cl.name || '';
+        }
+      });
+    }
+  } else {
+    clientWrap.style.display = 'none';
+  }
+
+  dlg.dataset.type = type;
+  dlg.classList.add('show');
+  setTimeout(function() { nameInput.focus(); }, 100);
+}
+
+function _closeMapDialog() {
+  var dlg = document.getElementById('map-dialog');
+  if (dlg) dlg.classList.remove('show');
+  _mapPendingCoords = null;
+  _mapMode = null;
+}
+
+function _saveMapMarker() {
+  if (!_mapPendingCoords) { _closeMapDialog(); return; }
+
+  var type = document.getElementById('map-dialog').dataset.type || 'note';
+  var name = (document.getElementById('map-dialog-name').value || '').trim();
+  var note = (document.getElementById('map-dialog-note').value || '').trim();
+  var clientId = '';
+  var clientSel = document.getElementById('map-dialog-client');
+  if (clientSel && clientSel.closest('#map-dialog-client-wrap').style.display !== 'none') {
+    clientId = clientSel.value || '';
+  }
+
+  if (!name) {
+    // Auto-name based on type
+    var autoNames = { client: 'Клиент', visit: 'Визит', note: 'Заметка' };
+    name = (autoNames[type] || 'Метка') + ' ' + new Date().toLocaleDateString('ru-RU');
+  }
+
+  // Get client name for display
+  var clientName = '';
+  if (clientId && typeof clients !== 'undefined') {
+    var cl = clients.find(function(c){ return c.id === clientId; });
+    if (cl) clientName = cl.name || '';
+  }
+
+  var marker = {
+    id: 'mp_' + Date.now() + '_' + Math.random().toString(36).substr(2,5),
+    type: type,
+    name: name,
+    note: note,
+    clientId: clientId,
+    clientName: clientName,
+    coords: _mapPendingCoords,
+    ts: Date.now()
+  };
+
+  _mapMarkers.push(marker);
+  mapSave();
+  _addPlacemarkToMap(marker);
+  _renderMarkersList();
+  _closeMapDialog();
+  toast('📍 Метка добавлена');
+}
+
+function _addPlacemarkToMap(marker) {
+  if (!_mapReady || !_mapInstance) return;
+
+  var colorMap = { client: '#FFCD11', visit: '#22c55e', note: '#f97316' };
+  var iconMap  = { client: '👤', visit: '🚗', note: '📝' };
+  var color = colorMap[marker.type] || '#888';
+  var icon  = iconMap[marker.type]  || '📍';
+
+  var balloonContent = '<div class="map-popup"><b style="color:' + color + ';">' + _esc(marker.name) + '</b>';
+  if (marker.clientName) balloonContent += '<br><span style="color:#888;font-size:.75rem;">👤 ' + _esc(marker.clientName) + '</span>';
+  if (marker.note) balloonContent += '<br><span style="color:#aaa;font-size:.75rem;">' + _esc(marker.note) + '</span>';
+  balloonContent += '<br><span style="color:#555;font-size:.65rem;">' + new Date(marker.ts).toLocaleDateString('ru-RU') + '</span></div>';
+
+  // Yandex Maps
+  if (typeof ymaps !== 'undefined' && _mapInstance.geoObjects) {
+    var pm = new ymaps.Placemark(marker.coords, {
+      balloonContent: balloonContent,
+      hintContent: marker.name,
+      iconContent: icon
+    }, {
+      preset: 'islands#circleIcon',
+      iconColor: color
+    });
+    _mapInstance.geoObjects.add(pm);
+    _mapPlacemarks[marker.id] = pm;
+  }
+  // Leaflet
+  else if (typeof L !== 'undefined' && _mapInstance.addLayer) {
+    var divIcon = L.divIcon({
+      html: '<div style="width:32px;height:32px;border-radius:50%;background:' + color + ';display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 2px 8px rgba(0,0,0,.5);">' + icon + '</div>',
+      className: '',
+      iconSize: [32, 32],
+      iconAnchor: [16, 16]
+    });
+    var pm2 = L.marker(marker.coords, { icon: divIcon })
+      .bindPopup('<b style="color:' + color + ';">' + _esc(marker.name) + '</b>' +
+        (marker.clientName ? '<br><small>👤 ' + _esc(marker.clientName) + '</small>' : '') +
+        (marker.note ? '<br><small>' + _esc(marker.note) + '</small>' : ''))
+      .addTo(_mapInstance);
+    _mapPlacemarks[marker.id] = pm2;
+  }
+}
+
+function _removePlacemarkFromMap(id) {
+  var pm = _mapPlacemarks[id];
+  if (!pm) return;
+
+  if (typeof ymaps !== 'undefined' && _mapInstance.geoObjects) {
+    _mapInstance.geoObjects.remove(pm);
+  } else if (typeof L !== 'undefined' && _mapInstance.removeLayer) {
+    _mapInstance.removeLayer(pm);
+  }
+  delete _mapPlacemarks[id];
+}
+
+function _refreshMapMarkers() {
+  // Clear existing
+  if (_mapInstance) {
+    if (typeof ymaps !== 'undefined' && _mapInstance.geoObjects) {
+      _mapInstance.geoObjects.removeAll();
+    } else if (typeof L !== 'undefined' && _mapInstance.removeLayer) {
+      Object.keys(_mapPlacemarks).forEach(function(id) {
+        _mapInstance.removeLayer(_mapPlacemarks[id]);
+      });
+    }
+  }
+  _mapPlacemarks = {};
+
+  // Re-add all saved markers
+  _mapMarkers.forEach(function(m) { _addPlacemarkToMap(m); });
+  _renderMarkersList();
+}
+
+function _renderMarkersList() {
+  var list = document.getElementById('map-markers-list');
+  if (!list) return;
+
+  if (!_mapMarkers.length) {
+    list.innerHTML = '<div style="color:var(--MT);font-size:.78rem;text-align:center;padding:20px;">Меток пока нет. Нажмите кнопку выше и кликните на карту.</div>';
+    return;
+  }
+
+  var sorted = _mapMarkers.slice().sort(function(a,b){ return b.ts - a.ts; });
+  var html = '';
+  sorted.forEach(function(m) {
+    var iconClass = { client: 'client', visit: 'visit', note: 'note' }[m.type] || 'note';
+    var iconEl   = { client: 'fas fa-user', visit: 'fas fa-route', note: 'fas fa-sticky-note' }[m.type] || 'fas fa-map-pin';
+    var sub = '';
+    if (m.clientName) sub += '👤 ' + _esc(m.clientName) + '  ';
+    if (m.note) sub += m.note.substring(0, 40) + (m.note.length > 40 ? '…' : '');
+    if (!sub) sub = new Date(m.ts).toLocaleDateString('ru-RU');
+
+    html += '<div class="map-marker-card" data-mid="' + _esc(m.id) + '">' +
+      '<div class="map-marker-icon ' + iconClass + '"><i class="' + iconEl + '"></i></div>' +
+      '<div class="map-marker-info">' +
+        '<div class="map-marker-title">' + _esc(m.name) + '</div>' +
+        '<div class="map-marker-sub">' + sub + '</div>' +
+      '</div>' +
+      '<button class="map-marker-del" onclick="mapDeleteMarker(\'' + _esc(m.id) + '\')" title="Удалить"><i class="fas fa-trash"></i></button>' +
+      '<button class="map-marker-del" onclick="mapFlyTo(\'' + _esc(m.id) + '\')" title="Перейти" style="color:var(--Y);"><i class="fas fa-crosshairs"></i></button>' +
+    '</div>';
+  });
+  list.innerHTML = html;
+}
+
+function mapDeleteMarker(id) {
+  if (!confirm('Удалить метку?')) return;
+  _removePlacemarkFromMap(id);
+  _mapMarkers = _mapMarkers.filter(function(m){ return m.id !== id; });
+  mapSave();
+  _renderMarkersList();
+  toast('Метка удалена');
+}
+
+function mapFlyTo(id) {
+  var m = _mapMarkers.find(function(x){ return x.id === id; });
+  if (!m || !_mapInstance) return;
+
+  if (typeof ymaps !== 'undefined' && _mapInstance.setCenter) {
+    _mapInstance.setCenter(m.coords, 15, { duration: 500 });
+    var pm = _mapPlacemarks[id];
+    if (pm) pm.balloon.open();
+  } else if (typeof L !== 'undefined' && _mapInstance.setView) {
+    _mapInstance.setView(m.coords, 15, { animate: true });
+    var pm2 = _mapPlacemarks[id];
+    if (pm2) pm2.openPopup();
+  }
+}
+
+function _goToMyLocation() {
+  if (!navigator.geolocation) { toast('Геолокация недоступна'); return; }
+  toast('Определяю местоположение...');
+  navigator.geolocation.getCurrentPosition(function(pos) {
+    var coords = [pos.coords.latitude, pos.coords.longitude];
+    if (!_mapInstance) return;
+
+    if (typeof ymaps !== 'undefined' && _mapInstance.setCenter) {
+      _mapInstance.setCenter(coords, 15, { duration: 500 });
+    } else if (typeof L !== 'undefined' && _mapInstance.setView) {
+      _mapInstance.setView(coords, 15, { animate: true });
+    }
+    toast('📍 Местоположение найдено');
+  }, function() {
+    toast('Не удалось определить местоположение');
+  });
+}
+
+function _esc(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
 </script>
+
+<!-- MAP ADD MARKER DIALOG -->
+<div id="map-dialog">
+  <div id="map-dialog-inner">
+    <h3 id="map-dialog-title"><i class="fas fa-map-pin"></i> Добавить метку</h3>
+    <div style="margin-bottom:10px;">
+      <label style="font-size:.63rem;color:var(--MT);font-weight:700;text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:5px;">Название</label>
+      <input id="map-dialog-name" type="text" maxlength="60" placeholder="Название метки"
+        style="width:100%;background:var(--D2);border:1.5px solid var(--BD);border-radius:7px;padding:8px 11px;font-size:.85rem;color:var(--TX);outline:none;box-sizing:border-box;font-family:inherit;">
+    </div>
+    <div id="map-dialog-client-wrap" style="margin-bottom:10px;display:none;">
+      <label style="font-size:.63rem;color:var(--MT);font-weight:700;text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:5px;">Клиент (необязательно)</label>
+      <select id="map-dialog-client"
+        style="width:100%;background:var(--D2);border:1.5px solid var(--BD);border-radius:7px;padding:8px 11px;font-size:.85rem;color:var(--TX);outline:none;box-sizing:border-box;font-family:inherit;">
+        <option value="">— Без привязки —</option>
+      </select>
+    </div>
+    <div style="margin-bottom:14px;">
+      <label style="font-size:.63rem;color:var(--MT);font-weight:700;text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:5px;">Заметка</label>
+      <textarea id="map-dialog-note" rows="3" placeholder="Комментарий, адрес, что угодно..."
+        style="width:100%;background:var(--D2);border:1.5px solid var(--BD);border-radius:7px;padding:8px 11px;font-size:.85rem;color:var(--TX);outline:none;box-sizing:border-box;resize:vertical;min-height:60px;font-family:inherit;"></textarea>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button id="map-dialog-save" style="flex:1;background:var(--Y);border:none;border-radius:8px;padding:10px;font-size:.85rem;font-weight:800;color:var(--BK);cursor:pointer;font-family:inherit;">Сохранить</button>
+      <button id="map-dialog-cancel" style="padding:10px 16px;border-radius:8px;border:1px solid var(--BD);background:none;color:var(--MT);font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit;">Отмена</button>
+    </div>
+  </div>
+</div>
 
 <!-- PROFILE MODAL -->
 <div id="profile-modal" style="display:none;position:fixed;inset:0;z-index:9100;background:rgba(0,0,0,.8);backdrop-filter:blur(3px);">
