@@ -2009,7 +2009,7 @@ function openDrawer(n) {
     if (n === 'calc') { reattachCalcHandlers(); renderCalc(); }
     if (n === 'sold') renderSoldCards();
     if (n === 'char') { initCharCarousel(); renderChar(); }
-    if (n === 'map') { setTimeout(initMap, 100); }
+    if (n === 'map') { setTimeout(initMap, 100); } else { _stopMapPolling(); }
     reattachPanels();
   }, 50);
 }
@@ -3920,45 +3920,87 @@ var _mapMarkers = [];
 var _mapPlacemarks = {};
 var _mapReady = false;
 var _ymapsReady = false;
+var _mapPollTimer = null;
 
-// Storage helpers
-function mapSave() {
-  try { localStorage.setItem('crm_map_markers', JSON.stringify(_mapMarkers)); } catch(e) {}
+// Storage helpers — server API
+function mapSave(marker) {
+  var body = {
+    id: marker.id, type: marker.type, name: marker.name, note: marker.note,
+    clientId: marker.clientId, clientName: marker.clientName,
+    coords: marker.coords, ts: marker.ts,
+    createdBy: (currentUser && currentUser.name) ? currentUser.name : (currentUser ? currentUser.login : '')
+  };
+  fetch('/api/map/markers', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  }).catch(function(e) { console.warn('mapSave error', e); });
+}
+function mapDeleteServer(id) {
+  return fetch('/api/map/markers/' + id, { method: 'DELETE' })
+    .catch(function(e) { console.warn('mapDelete error', e); });
 }
 function mapLoad() {
-  try {
-    var s = localStorage.getItem('crm_map_markers');
-    if (s) _mapMarkers = JSON.parse(s);
-  } catch(e) { _mapMarkers = []; }
+  return fetch('/api/map/markers')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (Array.isArray(data)) { _mapMarkers = data; }
+    })
+    .catch(function(e) { console.warn('mapLoad error', e); _mapMarkers = []; });
+}
+function _startMapPolling() {
+  if (_mapPollTimer) return;
+  _mapPollTimer = setInterval(function() {
+    fetch('/api/map/markers')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!Array.isArray(data)) return;
+        // Check if anything changed
+        if (JSON.stringify(data.map(function(m){return m.id+m.ts;})) !==
+            JSON.stringify(_mapMarkers.map(function(m){return m.id+m.ts;}))) {
+          _mapMarkers = data;
+          _refreshMapMarkers();
+        }
+      })
+      .catch(function(){});
+  }, 8000); // poll every 8 seconds
+}
+function _stopMapPolling() {
+  if (_mapPollTimer) { clearInterval(_mapPollTimer); _mapPollTimer = null; }
 }
 
 // Init map (called when drawer opens)
 function initMap() {
-  mapLoad();
-  var container = document.getElementById('map-dialog');
-  if (!container) return;
+  mapLoad().then(function() {
+    var container = document.getElementById('map-dialog');
+    if (!container) return;
 
-  // Check if Yandex Maps API is loaded
-  if (typeof ymaps === 'undefined') {
-    // Try to load it dynamically
-    var s = document.createElement('script');
-    s.src = 'https://api-maps.yandex.ru/2.1/?lang=ru_RU&load=package.full';
-    s.onload = function() {
+    if (typeof ymaps === 'undefined') {
+      var s = document.createElement('script');
+      s.src = 'https://api-maps.yandex.ru/2.1/?lang=ru_RU&load=package.full';
+      s.onload = function() {
+        ymaps.ready(function() {
+          _ymapsReady = true;
+          _buildMap();
+        });
+      };
+      s.onerror = function() { _fallbackToLeaflet(); };
+      document.head.appendChild(s);
+    } else if (!_ymapsReady) {
       ymaps.ready(function() {
         _ymapsReady = true;
         _buildMap();
       });
-    };
-    s.onerror = function() { _fallbackToLeaflet(); };
-    document.head.appendChild(s);
-  } else if (!_ymapsReady) {
-    ymaps.ready(function() {
-      _ymapsReady = true;
+    } else {
       _buildMap();
-    });
-  } else {
-    _buildMap();
-  }
+    }
+    _startMapPolling();
+  });
+}
+
+// Called when leaving map section
+function deinitMap() {
+  _stopMapPolling();
 }
 
 function _fallbackToLeaflet() {
@@ -4182,7 +4224,7 @@ function _saveMapMarker() {
   };
 
   _mapMarkers.push(marker);
-  mapSave();
+  mapSave(marker);
   _addPlacemarkToMap(marker);
   _renderMarkersList();
   _closeMapDialog();
@@ -4200,6 +4242,7 @@ function _addPlacemarkToMap(marker) {
   var balloonContent = '<div class="map-popup"><b style="color:' + color + ';">' + _esc(marker.name) + '</b>';
   if (marker.clientName) balloonContent += '<br><span style="color:#888;font-size:.75rem;">👤 ' + _esc(marker.clientName) + '</span>';
   if (marker.note) balloonContent += '<br><span style="color:#aaa;font-size:.75rem;">' + _esc(marker.note) + '</span>';
+  if (marker.createdBy) balloonContent += '<br><span style="color:#555;font-size:.65rem;">✍️ ' + _esc(marker.createdBy) + '</span>';
   balloonContent += '<br><span style="color:#555;font-size:.65rem;">' + new Date(marker.ts).toLocaleDateString('ru-RU') + '</span></div>';
 
   // Yandex Maps
@@ -4280,6 +4323,7 @@ function _renderMarkersList() {
     if (m.clientName) sub += '👤 ' + _esc(m.clientName) + '  ';
     if (m.note) sub += m.note.substring(0, 40) + (m.note.length > 40 ? '…' : '');
     if (!sub) sub = new Date(m.ts).toLocaleDateString('ru-RU');
+    if (m.createdBy) sub += ' · ✍️ ' + _esc(m.createdBy);
 
     html += '<div class="map-marker-card" data-mid="' + _esc(m.id) + '">' +
       '<div class="map-marker-icon ' + iconClass + '"><i class="' + iconEl + '"></i></div>' +
@@ -4298,7 +4342,7 @@ function mapDeleteMarker(id) {
   if (!confirm('Удалить метку?')) return;
   _removePlacemarkFromMap(id);
   _mapMarkers = _mapMarkers.filter(function(m){ return m.id !== id; });
-  mapSave();
+  mapDeleteServer(id);
   _renderMarkersList();
   toast('Метка удалена');
 }

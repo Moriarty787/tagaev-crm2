@@ -82,6 +82,22 @@ async function initDB() {
   await pool.query(`ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS msgtype TEXT DEFAULT NULL`).catch(()=>{});
   await pool.query(`ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS "to" TEXT`).catch(()=>{});
 
+  // map_markers — общие для всех пользователей
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS map_markers (
+      id         TEXT PRIMARY KEY,
+      type       TEXT NOT NULL DEFAULT 'note',
+      name       TEXT NOT NULL,
+      note       TEXT DEFAULT '',
+      client_id  TEXT DEFAULT '',
+      client_name TEXT DEFAULT '',
+      coords     JSONB NOT NULL,
+      ts         BIGINT NOT NULL DEFAULT 0,
+      created_by TEXT DEFAULT '',
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
   // Admin по умолчанию
   const { rows } = await pool.query(`SELECT count(*) as cnt FROM accounts`);
   if (parseInt(rows[0].cnt) === 0) {
@@ -306,6 +322,55 @@ app.post('/api/chat', async (req, res) => {
 app.delete('/api/chat', async (req, res) => {
   try {
     await pool.query(`DELETE FROM chat_messages WHERE type='all'`);
+    res.json({ ok: true });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── MAP MARKERS (общие для всех) ───────────────────────────────
+app.get('/api/map/markers', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, type, name, note, client_id, client_name, coords, ts, created_by FROM map_markers ORDER BY ts DESC`
+    );
+    res.json(rows.map(r => ({
+      id: r.id,
+      type: r.type,
+      name: r.name,
+      note: r.note,
+      clientId: r.client_id,
+      clientName: r.client_name,
+      coords: r.coords,
+      ts: Number(r.ts),
+      createdBy: r.created_by
+    })));
+  } catch(e) {
+    console.error('GET /api/map/markers', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/map/markers', async (req, res) => {
+  const { id, type, name, note, clientId, clientName, coords, ts, createdBy } = req.body || {};
+  if (!id || !coords) return res.status(400).json({ error: 'id and coords required' });
+  try {
+    await pool.query(
+      `INSERT INTO map_markers (id, type, name, note, client_id, client_name, coords, ts, created_by, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())
+       ON CONFLICT (id) DO UPDATE SET type=$2, name=$3, note=$4, client_id=$5, client_name=$6, coords=$7, ts=$8, updated_at=NOW()`,
+      [id, type||'note', name||'Метка', note||'', clientId||'', clientName||'', JSON.stringify(coords), ts||Date.now(), createdBy||'']
+    );
+    res.json({ ok: true });
+  } catch(e) {
+    console.error('POST /api/map/markers', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/map/markers/:id', async (req, res) => {
+  try {
+    await pool.query(`DELETE FROM map_markers WHERE id=$1`, [req.params.id]);
     res.json({ ok: true });
   } catch(e) {
     res.status(500).json({ error: e.message });
